@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 export function useMediaStream() {
     const [stream, setStream] = useState(null);
-    const [isAudioOn, setIsAudioOn] = useState(true);
+    const [isAudioOn, setIsAudioOn] = useState(false); // Default: Mic Off
     const [isVideoOn, setIsVideoOn] = useState(true);
     const [error, setError] = useState(null);
     const [permissionState, setPermissionState] = useState('prompt');
@@ -10,7 +10,7 @@ export function useMediaStream() {
 
     const startStream = useCallback(async () => {
         try {
-            // Request permissions with fallback
+            // Request permissions
             const constraints = {
                 video: {
                     width: { ideal: 1280, max: 1920 },
@@ -27,21 +27,22 @@ export function useMediaStream() {
 
             console.log('Requesting media stream...');
             const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-            console.log('Media stream obtained:', mediaStream.getTracks().map(t => `${t.kind}: ${t.label}`));
+            console.log('Media stream obtained');
 
             streamRef.current = mediaStream;
             setStream(mediaStream);
             setError(null);
             setPermissionState('granted');
 
-            // Ensure tracks are enabled
+            // Handle initial states
+            // Video should be enabled by default
             mediaStream.getVideoTracks().forEach(track => {
                 track.enabled = true;
-                console.log('Video track enabled:', track.enabled, track.readyState);
             });
+
+            // Audio should be DISABLED by default as per requirement
             mediaStream.getAudioTracks().forEach(track => {
-                track.enabled = true;
-                console.log('Audio track enabled:', track.enabled, track.readyState);
+                track.enabled = false;
             });
 
             return mediaStream;

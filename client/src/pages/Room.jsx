@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { HiVideoCamera, HiUserGroup, HiChatBubbleLeftRight } from 'react-icons/hi2';
+import { HiVideoCamera, HiUserGroup, HiChatBubbleLeftRight, HiSun, HiMoon } from 'react-icons/hi2';
 import { useSocket } from '../context/SocketContext';
+import { useTheme } from '../context/ThemeContext';
 import { useMediaStream } from '../hooks/useMediaStream';
 import { useWebRTC } from '../hooks/useWebRTC';
 import VideoGrid from '../components/VideoGrid';
@@ -15,6 +16,7 @@ export default function Room() {
     const { roomId } = useParams();
     const navigate = useNavigate();
     const { socket, isConnected } = useSocket();
+    const { theme, toggleTheme } = useTheme();
     const { stream, isAudioOn, isVideoOn, error: mediaError, startStream, stopStream, toggleAudio, toggleVideo } = useMediaStream();
     const { remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
 
@@ -39,7 +41,6 @@ export default function Room() {
         const initRoom = async () => {
             console.log('[Room] Initializing room...');
 
-            // Start media stream first
             const mediaStream = await startStream();
 
             if (mediaStream) {
@@ -50,14 +51,12 @@ export default function Room() {
                 toast.error('Could not access camera/microphone');
             }
 
-            // Join the room
             socket.emit('room:join', { roomId, username }, (response) => {
                 if (response.success) {
                     console.log('[Room] Joined room successfully');
                     setRoomInfo(response.room);
                     hasJoinedRef.current = true;
 
-                    // Initialize participants
                     const initialParticipants = {};
                     response.room.participants.forEach(p => {
                         if (p.socketId !== socket.id) {
@@ -66,7 +65,6 @@ export default function Room() {
                     });
                     setParticipants(initialParticipants);
 
-                    // Store existing users to call them once stream is ready
                     if (response.existingUsers?.length > 0) {
                         console.log('[Room] Existing users to call:', response.existingUsers);
                         setExistingUsers(response.existingUsers);
@@ -101,7 +99,7 @@ export default function Room() {
             setTimeout(() => {
                 console.log('[Room] Calling user:', user.username);
                 initiateCall(user.socketId, user.username);
-            }, 500 + (index * 500)); // Stagger calls
+            }, 500 + (index * 500));
         });
     }, [stream, existingUsers, initiateCall]);
 
@@ -124,7 +122,6 @@ export default function Room() {
                 ...prev,
                 [socketId]: { socketId, username, isAudioOn: true, isVideoOn: true }
             }));
-            // The new user will send us an offer, we don't need to call them
         };
 
         const handleUserLeft = ({ socketId }) => {
@@ -221,7 +218,7 @@ export default function Room() {
                         <HiVideoCamera className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h1 className="font-semibold text-white">{roomInfo?.name || 'Focus Room'}</h1>
+                        <h1 className="font-semibold">{roomInfo?.name || 'Focus Room'}</h1>
                         <p className="text-xs text-[var(--text-muted)]">
                             {Object.keys(participants).length + 1} participant{Object.keys(participants).length !== 0 ? 's' : ''}
                         </p>
@@ -229,6 +226,19 @@ export default function Room() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className="btn btn-icon btn-secondary"
+                        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                    >
+                        {theme === 'dark' ? (
+                            <HiSun className="w-5 h-5" />
+                        ) : (
+                            <HiMoon className="w-5 h-5" />
+                        )}
+                    </button>
+
                     {/* User List Toggle */}
                     <button
                         className={`btn btn-icon btn-secondary ${isUserListOpen ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)]' : ''}`}

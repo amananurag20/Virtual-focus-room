@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { HiMicrophone, HiVideoCamera, HiBellAlert, HiNoSymbol } from 'react-icons/hi2';
+import { HiMicrophone, HiVideoCamera, HiBellAlert } from 'react-icons/hi2';
 
 export default function VideoPlayer({
     videoRef,
@@ -14,27 +14,22 @@ export default function VideoPlayer({
     const internalVideoRef = useRef(null);
     const actualRef = videoRef || internalVideoRef;
     const [showPingButton, setShowPingButton] = useState(false);
-    const [isVideoReady, setIsVideoReady] = useState(false);
+
+    // We remove the conditional rendering of the video element to prevent unmounting issues
+    // Instead dependencies are managed carefully
 
     useEffect(() => {
-        if (actualRef.current && stream) {
-            console.log('Setting video srcObject:', stream.id, 'tracks:', stream.getTracks().length);
-            actualRef.current.srcObject = stream;
+        const videoElement = actualRef.current;
+        if (videoElement && stream) {
+            console.log(`[VideoPlayer] Attaching stream to ${isLocal ? 'local' : 'remote'} video`, stream.id);
+            videoElement.srcObject = stream;
 
-            actualRef.current.onloadedmetadata = () => {
-                console.log('Video metadata loaded');
-                setIsVideoReady(true);
-                actualRef.current.play().catch(err => {
-                    console.log('Autoplay prevented:', err);
-                });
-            };
-
-            actualRef.current.onplay = () => {
-                console.log('Video playing');
-                setIsVideoReady(true);
-            };
+            // Explicitly play to ensure it starts
+            videoElement.play().catch(err => {
+                console.warn('[VideoPlayer] Autoplay prevented:', err);
+            });
         }
-    }, [stream, actualRef]);
+    }, [stream, actualRef, isVideoOn, isLocal]); // Re-run when video is toggled on
 
     const hasVideoTrack = stream?.getVideoTracks()?.length > 0;
     const videoTrackEnabled = hasVideoTrack && stream.getVideoTracks()[0]?.enabled;
@@ -46,17 +41,18 @@ export default function VideoPlayer({
             onMouseEnter={() => setShowPingButton(true)}
             onMouseLeave={() => setShowPingButton(false)}
         >
-            {/* Video Element */}
-            {shouldShowVideo ? (
-                <video
-                    ref={actualRef}
-                    autoPlay
-                    playsInline
-                    muted={isLocal}
-                    className="w-full h-full object-cover scale-x-[-1]"
-                />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[var(--bg-tertiary)]">
+            {/* Video Element - Always render but hide when turned off */}
+            <video
+                ref={actualRef}
+                autoPlay
+                playsInline
+                muted={isLocal}
+                className={`w-full h-full object-cover scale-x-[-1] ${shouldShowVideo ? 'block' : 'hidden'}`}
+            />
+
+            {/* Avatar Fallback */}
+            {!shouldShowVideo && (
+                <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-tertiary)]">
                     <div className="w-24 h-24 rounded-full gradient-accent flex items-center justify-center text-3xl font-bold text-white shadow-lg">
                         {username.charAt(0).toUpperCase()}
                     </div>
