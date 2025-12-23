@@ -5,11 +5,12 @@ import {
     HiVideoCamera,
     HiUserGroup,
     HiChatBubbleLeftRight,
-    HiSun,
-    HiMoon,
     HiMicrophone,
     HiPhone,
-    HiSignal
+    HiClipboardDocumentList,
+    HiPlus,
+    HiCheck,
+    HiXMark
 } from 'react-icons/hi2';
 import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -20,12 +21,14 @@ import ChatPanel from '@/components/ChatPanel';
 import UserList from '@/components/UserList';
 import PingOverlay from '@/components/PingOverlay';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export default function Room() {
     const { roomId } = useParams();
     const navigate = useNavigate();
     const { socket, isConnected } = useSocket();
-    const { theme, toggleTheme } = useTheme();
+    const { theme } = useTheme();
     const { stream, isAudioOn, isVideoOn, startStream, stopStream, toggleAudio, toggleVideo } = useMediaStream();
     const { remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
 
@@ -34,14 +37,22 @@ export default function Room() {
     const [messages, setMessages] = useState([]);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isUserListOpen, setIsUserListOpen] = useState(false);
+    const [isTodoOpen, setIsTodoOpen] = useState(false);
     const [pingTarget, setPingTarget] = useState(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [existingUsers, setExistingUsers] = useState([]);
+
+    // Todo state
+    const [todos, setTodos] = useState([]);
+    const [newTodo, setNewTodo] = useState('');
 
     const username = localStorage.getItem('focusroom_username') || 'Anonymous';
     const localVideoRef = useRef(null);
     const hasJoinedRef = useRef(false);
     const hasCalledPeersRef = useRef(false);
+
+    // Theme-aware colors
+    const isDark = theme === 'dark';
 
     useEffect(() => {
         if (!socket || !isConnected || hasJoinedRef.current) return;
@@ -131,69 +142,80 @@ export default function Room() {
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
     const handleSendMessage = useCallback((message) => { socket?.emit('chat:message', { message }); }, [socket]);
     const handlePingUser = useCallback((targetSocketId) => { socket?.emit('user:ping', { targetSocketId }); toast.success(`Pinged!`); }, [socket]);
-    const handleOpenChat = () => { setIsChatOpen(true); setUnreadCount(0); };
+
+    // Toggle handlers - now properly toggle
+    const toggleChat = () => {
+        setIsChatOpen(prev => !prev);
+        if (!isChatOpen) setUnreadCount(0);
+        setIsUserListOpen(false);
+        setIsTodoOpen(false);
+    };
+    const toggleUserList = () => {
+        setIsUserListOpen(prev => !prev);
+        setIsChatOpen(false);
+        setIsTodoOpen(false);
+    };
+    const toggleTodo = () => {
+        setIsTodoOpen(prev => !prev);
+        setIsChatOpen(false);
+        setIsUserListOpen(false);
+    };
+
+    // Todo handlers
+    const addTodo = (e) => {
+        e.preventDefault();
+        if (!newTodo.trim()) return;
+        setTodos(prev => [...prev, { id: Date.now(), text: newTodo.trim(), done: false }]);
+        setNewTodo('');
+    };
+    const toggleTodoDone = (id) => {
+        setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+    };
+    const deleteTodo = (id) => {
+        setTodos(prev => prev.filter(t => t.id !== id));
+    };
 
     const participantCount = Object.keys(participants).length + 1;
 
     return (
-        <div className="h-screen flex flex-col bg-background">
+        <div className={`h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'}`}>
             {/* Header */}
-            <header className="h-16 border-b bg-card/50 backdrop-blur-xl px-4 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                            <HiVideoCamera className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="font-semibold text-foreground">{roomInfo?.name || 'Focus Room'}</h1>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                                    Live
-                                </span>
-                                <span>•</span>
-                                <span>{participantCount} participant{participantCount !== 1 ? 's' : ''}</span>
-                            </div>
+            <header className={`h-14 px-5 flex items-center justify-between shrink-0 ${isDark ? '' : 'border-b border-slate-200'}`}>
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                        <HiVideoCamera className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                        <h1 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{roomInfo?.name || 'Focus Room'}</h1>
+                        <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                {participantCount} online
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* Theme Toggle */}
-                    <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
-                        {theme === 'dark' ? <HiSun className="w-5 h-5 text-amber-400" /> : <HiMoon className="w-5 h-5 text-indigo-500" />}
-                    </Button>
-
-                    {/* Participants */}
-                    <Button
-                        variant={isUserListOpen ? 'default' : 'ghost'}
-                        size="icon"
-                        onClick={() => setIsUserListOpen(!isUserListOpen)}
-                        className="rounded-full"
-                    >
-                        <HiUserGroup className={`w-5 h-5 ${isUserListOpen ? '' : 'text-sky-500'}`} />
-                    </Button>
-
-                    {/* Chat */}
-                    <Button
-                        variant={isChatOpen ? 'default' : 'ghost'}
-                        size="icon"
-                        onClick={handleOpenChat}
-                        className="rounded-full relative"
-                    >
-                        <HiChatBubbleLeftRight className={`w-5 h-5 ${isChatOpen ? '' : 'text-emerald-500'}`} />
-                        {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] flex items-center justify-center font-bold text-white shadow-lg">
-                                {unreadCount > 9 ? '9+' : unreadCount}
-                            </span>
-                        )}
-                    </Button>
-                </div>
+                {/* Top Right: Todo Button */}
+                <Button
+                    variant={isTodoOpen ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={toggleTodo}
+                    className="gap-2"
+                >
+                    <HiClipboardDocumentList className="w-4 h-4" />
+                    <span className="hidden sm:inline">Tasks</span>
+                    {todos.filter(t => !t.done).length > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-bold">
+                            {todos.filter(t => !t.done).length}
+                        </span>
+                    )}
+                </Button>
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 flex overflow-hidden bg-muted/30">
-                <div className="flex-1 p-4 overflow-auto">
+            <main className="flex-1 flex overflow-hidden">
+                <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
                     <VideoGrid
                         localStream={stream}
                         localVideoRef={localVideoRef}
@@ -206,47 +228,137 @@ export default function Room() {
                         onPingUser={handlePingUser}
                     />
                 </div>
+
+                {/* Side Panels */}
                 {isUserListOpen && <UserList participants={participants} username={username} socketId={socket?.id} onPingUser={handlePingUser} onClose={() => setIsUserListOpen(false)} />}
                 {isChatOpen && <ChatPanel messages={messages} currentSocketId={socket?.id} onSendMessage={handleSendMessage} onClose={() => setIsChatOpen(false)} />}
+
+                {/* Todo Panel */}
+                {isTodoOpen && (
+                    <Card className="w-80 h-full border-l rounded-none flex flex-col">
+                        <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
+                            <CardTitle className="text-base font-semibold">My Tasks</CardTitle>
+                            <Button variant="ghost" size="icon" onClick={() => setIsTodoOpen(false)} className="h-8 w-8 rounded-full">
+                                <HiXMark className="w-5 h-5" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="flex-1 p-3 overflow-y-auto">
+                            <form onSubmit={addTodo} className="flex gap-2 mb-4">
+                                <Input
+                                    value={newTodo}
+                                    onChange={(e) => setNewTodo(e.target.value)}
+                                    placeholder="Add a task..."
+                                    className="flex-1"
+                                />
+                                <Button type="submit" size="icon"><HiPlus className="w-4 h-4" /></Button>
+                            </form>
+
+                            <div className="space-y-2">
+                                {todos.length === 0 ? (
+                                    <p className="text-center text-sm text-muted-foreground py-8">No tasks yet. Add one above!</p>
+                                ) : (
+                                    todos.map(todo => (
+                                        <div
+                                            key={todo.id}
+                                            className={`flex items-center gap-3 p-3 rounded-lg border ${todo.done ? 'bg-muted/50 opacity-60' : 'bg-card'}`}
+                                        >
+                                            <button
+                                                onClick={() => toggleTodoDone(todo.id)}
+                                                className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${todo.done ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'
+                                                    }`}
+                                            >
+                                                {todo.done && <HiCheck className="w-3 h-3" />}
+                                            </button>
+                                            <span className={`flex-1 text-sm ${todo.done ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
+                                            <button
+                                                onClick={() => deleteTodo(todo.id)}
+                                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                            >
+                                                <HiXMark className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </main>
 
-            {/* Media Controls */}
-            <footer className="h-20 border-t bg-card flex items-center justify-center gap-4 shrink-0">
-                {/* Mic Button */}
-                <Button
-                    variant={isAudioOn ? 'secondary' : 'destructive'}
-                    size="lg"
-                    onClick={handleToggleAudio}
-                    className="w-14 h-14 rounded-full shadow-lg"
-                >
-                    <HiMicrophone className="w-6 h-6" />
-                    {!isAudioOn && <span className="absolute w-8 h-0.5 bg-current rotate-45"></span>}
-                </Button>
+            {/* Unified Control Bar */}
+            <footer className="py-4 flex items-center justify-center shrink-0">
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark
+                        ? 'bg-slate-800/90 border-white/10'
+                        : 'bg-white/90 border-slate-200'
+                    }`}>
+                    {/* Mic */}
+                    <button
+                        onClick={handleToggleAudio}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isAudioOn
+                                ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                                : 'bg-red-500 hover:bg-red-600 text-white'
+                            }`}
+                        title={isAudioOn ? 'Mute' : 'Unmute'}
+                    >
+                        <HiMicrophone className="w-5 h-5" />
+                    </button>
 
-                {/* Camera Button */}
-                <Button
-                    variant={isVideoOn ? 'secondary' : 'destructive'}
-                    size="lg"
-                    onClick={handleToggleVideo}
-                    className="w-14 h-14 rounded-full shadow-lg"
-                >
-                    <HiVideoCamera className="w-6 h-6" />
-                    {!isVideoOn && <span className="absolute w-8 h-0.5 bg-current rotate-45"></span>}
-                </Button>
+                    {/* Camera */}
+                    <button
+                        onClick={handleToggleVideo}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isVideoOn
+                                ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                                : 'bg-red-500 hover:bg-red-600 text-white'
+                            }`}
+                        title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
+                    >
+                        <HiVideoCamera className="w-5 h-5" />
+                    </button>
 
-                {/* Leave Button */}
-                <Button
-                    variant="destructive"
-                    size="lg"
-                    onClick={handleLeaveRoom}
-                    className="px-8 h-14 rounded-full shadow-lg gap-2"
-                >
-                    <HiPhone className="w-5 h-5 rotate-[135deg]" />
-                    <span className="font-semibold">Leave</span>
-                </Button>
+                    <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
+
+                    {/* Participants */}
+                    <button
+                        onClick={toggleUserList}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isUserListOpen
+                                ? 'bg-sky-500 text-white'
+                                : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                            }`}
+                        title="Participants"
+                    >
+                        <HiUserGroup className="w-5 h-5" />
+                    </button>
+
+                    {/* Chat */}
+                    <button
+                        onClick={toggleChat}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 relative ${isChatOpen
+                                ? 'bg-emerald-500 text-white'
+                                : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                            }`}
+                        title="Chat"
+                    >
+                        <HiChatBubbleLeftRight className="w-5 h-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] flex items-center justify-center font-bold text-white">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
+
+                    <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
+
+                    {/* Leave */}
+                    <button
+                        onClick={handleLeaveRoom}
+                        className="h-11 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2 transition-all duration-200"
+                    >
+                        <HiPhone className="w-4 h-4 rotate-[135deg]" />
+                        <span className="text-sm">Leave</span>
+                    </button>
+                </div>
             </footer>
 
-            {/* Ping Overlay */}
             {pingTarget?.socketId === 'local' && <PingOverlay username={pingTarget.username} />}
         </div>
     );
