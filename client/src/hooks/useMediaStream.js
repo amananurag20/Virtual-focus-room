@@ -1,126 +1,150 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export function useMediaStream() {
     const [stream, setStream] = useState(null);
-    const [isAudioOn, setIsAudioOn] = useState(false); // Default: Mic Off
+    const [screenStream, setScreenStream] = useState(null);
+    const [isAudioOn, setIsAudioOn] = useState(false);
     const [isVideoOn, setIsVideoOn] = useState(true);
+    const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [error, setError] = useState(null);
-    const [permissionState, setPermissionState] = useState('prompt');
-    const streamRef = useRef(null);
 
     const startStream = useCallback(async () => {
         try {
-            // Request permissions
-            const constraints = {
+            console.log('[useMediaStream] Requesting media stream...');
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    width: { ideal: 1280, max: 1920 },
-                    height: { ideal: 720, max: 1080 },
-                    facingMode: 'user',
-                    frameRate: { ideal: 30 }
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
                 },
                 audio: {
                     echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
+                    noiseSuppression: true
                 }
-            };
-
-            console.log('Requesting media stream...');
-            const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-            console.log('Media stream obtained');
-
-            streamRef.current = mediaStream;
-            setStream(mediaStream);
-            setError(null);
-            setPermissionState('granted');
-
-            // Handle initial states
-            // Video should be enabled by default
-            mediaStream.getVideoTracks().forEach(track => {
-                track.enabled = true;
             });
 
-            // Audio should be DISABLED by default as per requirement
+            // Default: audio off
             mediaStream.getAudioTracks().forEach(track => {
                 track.enabled = false;
             });
 
+            setStream(mediaStream);
+            setIsAudioOn(false);
+            setIsVideoOn(true);
+            setError(null);
+            console.log('[useMediaStream] Stream started successfully');
             return mediaStream;
         } catch (err) {
-            console.error('Error accessing media devices:', err);
-            setError(err.message || 'Failed to access camera/microphone');
-            setPermissionState('denied');
-
-            // Try audio-only as fallback
-            if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
-                try {
-                    console.log('Trying audio only...');
-                    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                    streamRef.current = audioStream;
-                    setStream(audioStream);
-                    setIsVideoOn(false);
-                    return audioStream;
-                } catch (audioErr) {
-                    console.error('Audio also failed:', audioErr);
-                }
-            }
-
+            console.error('[useMediaStream] Error getting media:', err);
+            setError(err.message);
             return null;
         }
     }, []);
 
     const stopStream = useCallback(() => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => {
-                track.stop();
-                console.log('Stopped track:', track.kind);
-            });
-            streamRef.current = null;
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
             setStream(null);
+        }
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+            setScreenStream(null);
+        }
+        setIsScreenSharing(false);
+        console.log('[useMediaStream] Streams stopped');
+    }, [stream, screenStream]);
+
+    const toggleAudio = useCallback(() => {
+        if (stream) {
+            const audioTracks = stream.getAudioTracks();
+            audioTracks.forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            const newState = audioTracks[0]?.enabled ?? false;
+            setIsAudioOn(newState);
+            return newState;
+        }
+        return false;
+    }, [stream]);
+
+    const toggleVideo = useCallback(() => {
+        if (stream) {
+            const videoTracks = stream.getVideoTracks();
+            videoTracks.forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            const newState = videoTracks[0]?.enabled ?? false;
+            setIsVideoOn(newState);
+            return newState;
+        }
+        return isVideoOn;
+    }, [stream, isVideoOn]);
+
+    const startScreenShare = useCallback(async () => {
+        try {
+            console.log('[useMediaStream] Starting screen share...');
+            const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    cursor: 'always',
+                    displaySurface: 'monitor'
+                },
+                audio: false
+            });
+
+            const screenTrack = displayStream.getVideoTracks()[0];
+
+            // Handle when user stops sharing via browser UI
+            screenTrack.onended = () => {
+                console.log('[useMediaStream] Screen share ended by user');
+                setScreenStream(null);
+                setIsScreenSharing(false);
+            };
+
+            setScreenStream(displayStream);
+            setIsScreenSharing(true);
+            console.log('[useMediaStream] Screen share started');
+            return displayStream;
+        } catch (err) {
+            console.error('[useMediaStream] Screen share error:', err);
+            if (err.name !== 'AbortError') {
+                setError(err.message);
+            }
+            return null;
         }
     }, []);
 
-    const toggleAudio = useCallback(() => {
-        if (streamRef.current) {
-            const audioTrack = streamRef.current.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                setIsAudioOn(audioTrack.enabled);
-                console.log('Audio toggled:', audioTrack.enabled);
-                return audioTrack.enabled;
-            }
+    const stopScreenShare = useCallback(() => {
+        console.log('[useMediaStream] Stopping screen share...');
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+            setScreenStream(null);
         }
-        return isAudioOn;
-    }, [isAudioOn]);
+        setIsScreenSharing(false);
+    }, [screenStream]);
 
-    const toggleVideo = useCallback(() => {
-        if (streamRef.current) {
-            const videoTrack = streamRef.current.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                setIsVideoOn(videoTrack.enabled);
-                console.log('Video toggled:', videoTrack.enabled);
-                return videoTrack.enabled;
-            }
+    const toggleScreenShare = useCallback(async () => {
+        if (isScreenSharing) {
+            stopScreenShare();
+            return false;
+        } else {
+            const result = await startScreenShare();
+            return !!result;
         }
-        return isVideoOn;
-    }, [isVideoOn]);
-
-    useEffect(() => {
-        return () => {
-            stopStream();
-        };
-    }, [stopStream]);
+    }, [isScreenSharing, startScreenShare, stopScreenShare]);
 
     return {
-        stream,
+        stream,           // Camera stream
+        screenStream,     // Screen share stream (separate)
         isAudioOn,
         isVideoOn,
+        isScreenSharing,
         error,
-        permissionState,
         startStream,
         stopStream,
         toggleAudio,
-        toggleVideo
+        toggleVideo,
+        toggleScreenShare,
+        startScreenShare,
+        stopScreenShare
     };
 }

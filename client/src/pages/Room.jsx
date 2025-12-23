@@ -10,7 +10,9 @@ import {
     HiClipboardDocumentList,
     HiPlus,
     HiCheck,
-    HiXMark
+    HiXMark,
+    HiComputerDesktop,
+    HiStopCircle
 } from 'react-icons/hi2';
 import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -29,7 +31,17 @@ export default function Room() {
     const navigate = useNavigate();
     const { socket, isConnected } = useSocket();
     const { theme } = useTheme();
-    const { stream, isAudioOn, isVideoOn, startStream, stopStream, toggleAudio, toggleVideo } = useMediaStream();
+    const {
+        stream,
+        isAudioOn,
+        isVideoOn,
+        isScreenSharing,
+        startStream,
+        stopStream,
+        toggleAudio,
+        toggleVideo,
+        toggleScreenShare
+    } = useMediaStream();
     const { remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
 
     const [roomInfo, setRoomInfo] = useState(null);
@@ -42,7 +54,6 @@ export default function Room() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [existingUsers, setExistingUsers] = useState([]);
 
-    // Todo state
     const [todos, setTodos] = useState([]);
     const [newTodo, setNewTodo] = useState('');
 
@@ -51,7 +62,6 @@ export default function Room() {
     const hasJoinedRef = useRef(false);
     const hasCalledPeersRef = useRef(false);
 
-    // Theme-aware colors
     const isDark = theme === 'dark';
 
     useEffect(() => {
@@ -97,7 +107,7 @@ export default function Room() {
 
     useEffect(() => {
         if (localVideoRef.current && stream) localVideoRef.current.srcObject = stream;
-    }, [stream]);
+    }, [stream, isScreenSharing]);
 
     useEffect(() => {
         if (!socket) return;
@@ -139,11 +149,20 @@ export default function Room() {
 
     const handleToggleAudio = useCallback(() => { const e = toggleAudio(); socket?.emit('media:toggle', { type: 'audio', enabled: e }); }, [socket, toggleAudio]);
     const handleToggleVideo = useCallback(() => { const e = toggleVideo(); socket?.emit('media:toggle', { type: 'video', enabled: e }); }, [socket, toggleVideo]);
+    const handleToggleScreenShare = useCallback(async () => {
+        const result = await toggleScreenShare();
+        if (result) {
+            toast.success('Screen sharing started');
+            socket?.emit('media:toggle', { type: 'screen', enabled: true });
+        } else if (isScreenSharing) {
+            toast('Screen sharing stopped', { icon: '🖥️' });
+            socket?.emit('media:toggle', { type: 'screen', enabled: false });
+        }
+    }, [toggleScreenShare, isScreenSharing, socket]);
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
     const handleSendMessage = useCallback((message) => { socket?.emit('chat:message', { message }); }, [socket]);
     const handlePingUser = useCallback((targetSocketId) => { socket?.emit('user:ping', { targetSocketId }); toast.success(`Pinged!`); }, [socket]);
 
-    // Toggle handlers - now properly toggle
     const toggleChat = () => {
         setIsChatOpen(prev => !prev);
         if (!isChatOpen) setUnreadCount(0);
@@ -161,7 +180,6 @@ export default function Room() {
         setIsUserListOpen(false);
     };
 
-    // Todo handlers
     const addTodo = (e) => {
         e.preventDefault();
         if (!newTodo.trim()) return;
@@ -192,11 +210,19 @@ export default function Room() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                                 {participantCount} online
                             </span>
+                            {isScreenSharing && (
+                                <>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1 text-amber-500">
+                                        <HiComputerDesktop className="w-3 h-3" />
+                                        Sharing screen
+                                    </span>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Top Right: Todo Button */}
                 <Button
                     variant={isTodoOpen ? 'default' : 'outline'}
                     size="sm"
@@ -221,6 +247,7 @@ export default function Room() {
                         localVideoRef={localVideoRef}
                         isLocalAudioOn={isAudioOn}
                         isLocalVideoOn={isVideoOn}
+                        isScreenSharing={isScreenSharing}
                         username={username}
                         participants={participants}
                         remoteStreams={remoteStreams}
@@ -229,11 +256,9 @@ export default function Room() {
                     />
                 </div>
 
-                {/* Side Panels */}
                 {isUserListOpen && <UserList participants={participants} username={username} socketId={socket?.id} onPingUser={handlePingUser} onClose={() => setIsUserListOpen(false)} />}
                 {isChatOpen && <ChatPanel messages={messages} currentSocketId={socket?.id} onSendMessage={handleSendMessage} onClose={() => setIsChatOpen(false)} />}
 
-                {/* Todo Panel */}
                 {isTodoOpen && (
                     <Card className="w-80 h-full border-l rounded-none flex flex-col">
                         <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
@@ -244,36 +269,20 @@ export default function Room() {
                         </CardHeader>
                         <CardContent className="flex-1 p-3 overflow-y-auto">
                             <form onSubmit={addTodo} className="flex gap-2 mb-4">
-                                <Input
-                                    value={newTodo}
-                                    onChange={(e) => setNewTodo(e.target.value)}
-                                    placeholder="Add a task..."
-                                    className="flex-1"
-                                />
+                                <Input value={newTodo} onChange={(e) => setNewTodo(e.target.value)} placeholder="Add a task..." className="flex-1" />
                                 <Button type="submit" size="icon"><HiPlus className="w-4 h-4" /></Button>
                             </form>
-
                             <div className="space-y-2">
                                 {todos.length === 0 ? (
                                     <p className="text-center text-sm text-muted-foreground py-8">No tasks yet. Add one above!</p>
                                 ) : (
                                     todos.map(todo => (
-                                        <div
-                                            key={todo.id}
-                                            className={`flex items-center gap-3 p-3 rounded-lg border ${todo.done ? 'bg-muted/50 opacity-60' : 'bg-card'}`}
-                                        >
-                                            <button
-                                                onClick={() => toggleTodoDone(todo.id)}
-                                                className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${todo.done ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'
-                                                    }`}
-                                            >
+                                        <div key={todo.id} className={`flex items-center gap-3 p-3 rounded-lg border ${todo.done ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
+                                            <button onClick={() => toggleTodoDone(todo.id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${todo.done ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>
                                                 {todo.done && <HiCheck className="w-3 h-3" />}
                                             </button>
                                             <span className={`flex-1 text-sm ${todo.done ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
-                                            <button
-                                                onClick={() => deleteTodo(todo.id)}
-                                                className="text-muted-foreground hover:text-destructive transition-colors"
-                                            >
+                                            <button onClick={() => deleteTodo(todo.id)} className="text-muted-foreground hover:text-destructive transition-colors">
                                                 <HiXMark className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -285,19 +294,13 @@ export default function Room() {
                 )}
             </main>
 
-            {/* Unified Control Bar */}
+            {/* Control Bar */}
             <footer className="py-4 flex items-center justify-center shrink-0">
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark
-                        ? 'bg-slate-800/90 border-white/10'
-                        : 'bg-white/90 border-slate-200'
-                    }`}>
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark ? 'bg-slate-800/90 border-white/10' : 'bg-white/90 border-slate-200'}`}>
                     {/* Mic */}
                     <button
                         onClick={handleToggleAudio}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isAudioOn
-                                ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                                : 'bg-red-500 hover:bg-red-600 text-white'
-                            }`}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                         title={isAudioOn ? 'Mute' : 'Unmute'}
                     >
                         <HiMicrophone className="w-5 h-5" />
@@ -306,13 +309,22 @@ export default function Room() {
                     {/* Camera */}
                     <button
                         onClick={handleToggleVideo}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isVideoOn
-                                ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                                : 'bg-red-500 hover:bg-red-600 text-white'
-                            }`}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                         title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
                     >
                         <HiVideoCamera className="w-5 h-5" />
+                    </button>
+
+                    {/* Screen Share */}
+                    <button
+                        onClick={handleToggleScreenShare}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isScreenSharing
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse'
+                                : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                            }`}
+                        title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+                    >
+                        {isScreenSharing ? <HiStopCircle className="w-5 h-5" /> : <HiComputerDesktop className="w-5 h-5" />}
                     </button>
 
                     <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
@@ -320,10 +332,7 @@ export default function Room() {
                     {/* Participants */}
                     <button
                         onClick={toggleUserList}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isUserListOpen
-                                ? 'bg-sky-500 text-white'
-                                : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                            }`}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
                         title="Participants"
                     >
                         <HiUserGroup className="w-5 h-5" />
@@ -332,10 +341,7 @@ export default function Room() {
                     {/* Chat */}
                     <button
                         onClick={toggleChat}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 relative ${isChatOpen
-                                ? 'bg-emerald-500 text-white'
-                                : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                            }`}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
                         title="Chat"
                     >
                         <HiChatBubbleLeftRight className="w-5 h-5" />
