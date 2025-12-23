@@ -3,7 +3,11 @@ import { io } from 'socket.io-client';
 
 const SocketContext = createContext(null);
 
-const SOCKET_URL = 'http://localhost:5000';
+// Use the current hostname so it works both on localhost and network
+const getSocketUrl = () => {
+    const hostname = window.location.hostname;
+    return `http://${hostname}:5000`;
+};
 
 export function SocketProvider({ children }) {
     const [socket, setSocket] = useState(null);
@@ -11,7 +15,10 @@ export function SocketProvider({ children }) {
     const [rooms, setRooms] = useState([]);
 
     useEffect(() => {
-        const socketInstance = io(SOCKET_URL, {
+        const socketUrl = getSocketUrl();
+        console.log('Connecting to socket server:', socketUrl);
+
+        const socketInstance = io(socketUrl, {
             autoConnect: true,
             reconnection: true,
             reconnectionAttempts: 5,

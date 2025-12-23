@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { HiVideoCamera, HiUserGroup, HiChatBubbleLeftRight } from 'react-icons/hi2';
 import { useSocket } from '../context/SocketContext';
 import { useMediaStream } from '../hooks/useMediaStream';
 import { useWebRTC } from '../hooks/useWebRTC';
@@ -13,8 +15,8 @@ export default function Room() {
     const { roomId } = useParams();
     const navigate = useNavigate();
     const { socket, isConnected } = useSocket();
-    const { stream, isAudioOn, isVideoOn, startStream, stopStream, toggleAudio, toggleVideo } = useMediaStream();
-    const { peers, remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
+    const { stream, isAudioOn, isVideoOn, error: mediaError, startStream, stopStream, toggleAudio, toggleVideo } = useMediaStream();
+    const { remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
 
     const [roomInfo, setRoomInfo] = useState(null);
     const [participants, setParticipants] = useState({});
@@ -23,22 +25,35 @@ export default function Room() {
     const [isUserListOpen, setIsUserListOpen] = useState(false);
     const [pingTarget, setPingTarget] = useState(null);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [existingUsers, setExistingUsers] = useState([]);
+
     const username = localStorage.getItem('focusroom_username') || 'Anonymous';
     const localVideoRef = useRef(null);
     const hasJoinedRef = useRef(false);
+    const hasCalledPeersRef = useRef(false);
 
     // Initialize media and join room
     useEffect(() => {
         if (!socket || !isConnected || hasJoinedRef.current) return;
 
         const initRoom = async () => {
+            console.log('[Room] Initializing room...');
+
+            // Start media stream first
             const mediaStream = await startStream();
-            if (!mediaStream) {
-                console.error('Failed to get media stream');
+
+            if (mediaStream) {
+                console.log('[Room] Media stream ready');
+                toast.success('Camera and microphone ready!');
+            } else {
+                console.log('[Room] No media stream available');
+                toast.error('Could not access camera/microphone');
             }
 
+            // Join the room
             socket.emit('room:join', { roomId, username }, (response) => {
                 if (response.success) {
+                    console.log('[Room] Joined room successfully');
                     setRoomInfo(response.room);
                     hasJoinedRef.current = true;
 
@@ -51,13 +66,13 @@ export default function Room() {
                     });
                     setParticipants(initialParticipants);
 
-                    // Initiate calls to existing users
-                    response.existingUsers?.forEach(user => {
-                        setTimeout(() => {
-                            initiateCall(user.socketId, user.username);
-                        }, 500);
-                    });
+                    // Store existing users to call them once stream is ready
+                    if (response.existingUsers?.length > 0) {
+                        console.log('[Room] Existing users to call:', response.existingUsers);
+                        setExistingUsers(response.existingUsers);
+                    }
                 } else {
+                    toast.error(response.error || 'Failed to join room');
                     navigate('/');
                 }
             });
@@ -67,6 +82,7 @@ export default function Room() {
 
         return () => {
             if (hasJoinedRef.current) {
+                console.log('[Room] Leaving room...');
                 socket.emit('room:leave');
                 closeAllConnections();
                 stopStream();
@@ -74,9 +90,25 @@ export default function Room() {
         };
     }, [socket, isConnected, roomId]);
 
+    // Call existing users AFTER stream is ready
+    useEffect(() => {
+        if (!stream || existingUsers.length === 0 || hasCalledPeersRef.current) return;
+
+        console.log('[Room] Stream ready, calling existing users...');
+        hasCalledPeersRef.current = true;
+
+        existingUsers.forEach((user, index) => {
+            setTimeout(() => {
+                console.log('[Room] Calling user:', user.username);
+                initiateCall(user.socketId, user.username);
+            }, 500 + (index * 500)); // Stagger calls
+        });
+    }, [stream, existingUsers, initiateCall]);
+
     // Set local video ref
     useEffect(() => {
         if (localVideoRef.current && stream) {
+            console.log('[Room] Setting local video srcObject');
             localVideoRef.current.srcObject = stream;
         }
     }, [stream]);
@@ -86,13 +118,21 @@ export default function Room() {
         if (!socket) return;
 
         const handleUserJoined = ({ socketId, username }) => {
+            console.log('[Room] User joined:', username, socketId);
+            toast.success(`${username} joined the room`);
             setParticipants(prev => ({
                 ...prev,
                 [socketId]: { socketId, username, isAudioOn: true, isVideoOn: true }
             }));
+            // The new user will send us an offer, we don't need to call them
         };
 
         const handleUserLeft = ({ socketId }) => {
+            const user = participants[socketId];
+            console.log('[Room] User left:', user?.username || socketId);
+            if (user) {
+                toast(`${user.username || 'User'} left the room`, { icon: '👋' });
+            }
             setParticipants(prev => {
                 const updated = { ...prev };
                 delete updated[socketId];
@@ -101,6 +141,7 @@ export default function Room() {
         };
 
         const handleMediaToggle = ({ socketId, type, enabled }) => {
+            console.log('[Room] Media toggle:', socketId, type, enabled);
             setParticipants(prev => ({
                 ...prev,
                 [socketId]: {
@@ -118,6 +159,7 @@ export default function Room() {
         };
 
         const handlePinged = ({ from, username }) => {
+            toast(`${username} pinged you!`, { icon: '🔔' });
             setPingTarget({ socketId: 'local', username });
             setTimeout(() => setPingTarget(null), 3000);
         };
@@ -135,7 +177,7 @@ export default function Room() {
             socket.off('chat:message', handleChatMessage);
             socket.off('user:pinged', handlePinged);
         };
-    }, [socket, isChatOpen]);
+    }, [socket, isChatOpen, participants]);
 
     const handleToggleAudio = useCallback(() => {
         const enabled = toggleAudio();
@@ -151,6 +193,7 @@ export default function Room() {
         socket?.emit('room:leave');
         closeAllConnections();
         stopStream();
+        toast('Left the room', { icon: '👋' });
         navigate('/');
     }, [socket, closeAllConnections, stopStream, navigate]);
 
@@ -159,8 +202,10 @@ export default function Room() {
     }, [socket]);
 
     const handlePingUser = useCallback((targetSocketId) => {
+        const user = participants[targetSocketId];
         socket?.emit('user:ping', { targetSocketId });
-    }, [socket]);
+        toast.success(`Pinged ${user?.username || 'user'}!`);
+    }, [socket, participants]);
 
     const handleOpenChat = () => {
         setIsChatOpen(true);
@@ -172,10 +217,8 @@ export default function Room() {
             {/* Header */}
             <header className="glass px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
+                    <div className="w-10 h-10 rounded-lg gradient-accent flex items-center justify-center shadow-md">
+                        <HiVideoCamera className="w-5 h-5 text-white" />
                     </div>
                     <div>
                         <h1 className="font-semibold text-white">{roomInfo?.name || 'Focus Room'}</h1>
@@ -188,26 +231,22 @@ export default function Room() {
                 <div className="flex items-center gap-2">
                     {/* User List Toggle */}
                     <button
-                        className="btn btn-icon btn-secondary"
+                        className={`btn btn-icon btn-secondary ${isUserListOpen ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)]' : ''}`}
                         onClick={() => setIsUserListOpen(!isUserListOpen)}
                         title="Participants"
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                        <HiUserGroup className="w-5 h-5" />
                     </button>
 
                     {/* Chat Toggle */}
                     <button
-                        className="btn btn-icon btn-secondary relative"
+                        className={`btn btn-icon btn-secondary relative ${isChatOpen ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)]' : ''}`}
                         onClick={handleOpenChat}
                         title="Chat"
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
+                        <HiChatBubbleLeftRight className="w-5 h-5" />
                         {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--accent-primary)] text-xs flex items-center justify-center">
+                            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full gradient-accent text-xs flex items-center justify-center font-medium">
                                 {unreadCount > 9 ? '9+' : unreadCount}
                             </span>
                         )}
