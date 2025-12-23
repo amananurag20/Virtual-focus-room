@@ -4,10 +4,8 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
     const [theme, setTheme] = useState(() => {
-        // Check localStorage first, then system preference
         const saved = localStorage.getItem('focusroom_theme');
         if (saved) return saved;
-
         if (window.matchMedia('(prefers-color-scheme: light)').matches) {
             return 'light';
         }
@@ -15,8 +13,13 @@ export function ThemeProvider({ children }) {
     });
 
     useEffect(() => {
-        // Apply theme to document
-        document.documentElement.setAttribute('data-theme', theme);
+        const root = document.documentElement;
+        // Toggle the 'dark' class for Tailwind/shadcn
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
         localStorage.setItem('focusroom_theme', theme);
     }, [theme]);
 

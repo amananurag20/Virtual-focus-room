@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { HiMicrophone, HiVideoCamera, HiBellAlert } from 'react-icons/hi2';
+import { Button } from '@/components/ui/button';
 
 export default function VideoPlayer({
     videoRef,
@@ -13,35 +14,30 @@ export default function VideoPlayer({
 }) {
     const internalVideoRef = useRef(null);
     const actualRef = videoRef || internalVideoRef;
-    const [showPingButton, setShowPingButton] = useState(false);
-
-    // We remove the conditional rendering of the video element to prevent unmounting issues
-    // Instead dependencies are managed carefully
+    const [showControls, setShowControls] = useState(false);
 
     useEffect(() => {
         const videoElement = actualRef.current;
         if (videoElement && stream) {
-            console.log(`[VideoPlayer] Attaching stream to ${isLocal ? 'local' : 'remote'} video`, stream.id);
             videoElement.srcObject = stream;
-
-            // Explicitly play to ensure it starts
-            videoElement.play().catch(err => {
-                console.warn('[VideoPlayer] Autoplay prevented:', err);
-            });
+            videoElement.play().catch(() => { });
         }
-    }, [stream, actualRef, isVideoOn, isLocal]); // Re-run when video is toggled on
+    }, [stream, actualRef, isVideoOn]);
 
     const hasVideoTrack = stream?.getVideoTracks()?.length > 0;
     const videoTrackEnabled = hasVideoTrack && stream.getVideoTracks()[0]?.enabled;
     const shouldShowVideo = isVideoOn && hasVideoTrack && videoTrackEnabled;
 
+    const initials = username.slice(0, 2).toUpperCase();
+
     return (
         <div
-            className={`video-tile relative group ${isPinged ? 'animate-ping-effect' : ''}`}
-            onMouseEnter={() => setShowPingButton(true)}
-            onMouseLeave={() => setShowPingButton(false)}
+            className={`relative rounded-2xl overflow-hidden bg-card border border-border shadow-lg group transition-all duration-300 ${isPinged ? 'ring-4 ring-primary ring-offset-2 ring-offset-background animate-pulse' : ''}`}
+            onMouseEnter={() => setShowControls(true)}
+            onMouseLeave={() => setShowControls(false)}
+            style={{ aspectRatio: '16/9' }}
         >
-            {/* Video Element - Always render but hide when turned off */}
+            {/* Video Element */}
             <video
                 ref={actualRef}
                 autoPlay
@@ -52,76 +48,54 @@ export default function VideoPlayer({
 
             {/* Avatar Fallback */}
             {!shouldShowVideo && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-tertiary)]">
-                    <div className="w-24 h-24 rounded-full gradient-accent flex items-center justify-center text-3xl font-bold text-white shadow-lg">
-                        {username.charAt(0).toUpperCase()}
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-2xl shadow-indigo-500/30">
+                        {initials}
                     </div>
                 </div>
             )}
 
-            {/* Overlay Info */}
-            <div className="video-tile-overlay">
+            {/* Top Left: Name Badge */}
+            {isLocal && (
+                <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg">
+                    You
+                </div>
+            )}
+
+            {/* Top Right: Ping Button (for remote users) */}
+            {!isLocal && onPing && (
+                <div className={`absolute top-3 right-3 transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                    <Button
+                        size="icon"
+                        variant="secondary"
+                        onClick={onPing}
+                        className="w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-primary hover:text-primary-foreground"
+                    >
+                        <HiBellAlert className="w-4 h-4" />
+                    </Button>
+                </div>
+            )}
+
+            {/* Bottom Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-white truncate max-w-[140px]">
-                            {username} {isLocal && '(You)'}
-                        </span>
-                    </div>
+                    <span className="text-sm font-medium text-white truncate max-w-[150px]">
+                        {username}
+                    </span>
                     <div className="flex items-center gap-1.5">
                         {/* Audio Status */}
-                        <div className={`p-1.5 rounded-full transition-colors ${isAudioOn ? 'bg-white/20' : 'bg-[var(--accent-danger)]'
-                            }`}>
-                            {isAudioOn ? (
-                                <HiMicrophone className="w-3.5 h-3.5 text-white" />
-                            ) : (
-                                <div className="relative">
-                                    <HiMicrophone className="w-3.5 h-3.5 text-white" />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-full h-0.5 bg-white rotate-45"></div>
-                                    </div>
-                                </div>
-                            )}
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isAudioOn ? 'bg-white/20' : 'bg-red-500'}`}>
+                            <HiMicrophone className="w-3.5 h-3.5 text-white" />
+                            {!isAudioOn && <span className="absolute w-4 h-0.5 bg-white rotate-45"></span>}
                         </div>
                         {/* Video Status */}
-                        <div className={`p-1.5 rounded-full transition-colors ${isVideoOn ? 'bg-white/20' : 'bg-[var(--accent-danger)]'
-                            }`}>
-                            {isVideoOn ? (
-                                <HiVideoCamera className="w-3.5 h-3.5 text-white" />
-                            ) : (
-                                <div className="relative">
-                                    <HiVideoCamera className="w-3.5 h-3.5 text-white" />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-full h-0.5 bg-white rotate-45"></div>
-                                    </div>
-                                </div>
-                            )}
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isVideoOn ? 'bg-white/20' : 'bg-red-500'}`}>
+                            <HiVideoCamera className="w-3.5 h-3.5 text-white" />
+                            {!isVideoOn && <span className="absolute w-4 h-0.5 bg-white rotate-45"></span>}
                         </div>
                     </div>
                 </div>
             </div>
-
-            {/* Ping Button */}
-            {!isLocal && showPingButton && onPing && (
-                <button
-                    onClick={onPing}
-                    className="absolute top-3 right-3 btn btn-icon btn-secondary bg-black/40 hover:bg-white/20 backdrop-blur-sm"
-                    title="Ping user"
-                >
-                    <HiBellAlert className="w-4 h-4" />
-                </button>
-            )}
-
-            {/* Ping Animation Overlay */}
-            {isPinged && (
-                <div className="absolute inset-0 border-4 border-[var(--accent-primary)] rounded-xl pointer-events-none animate-glow"></div>
-            )}
-
-            {/* Local Badge */}
-            {isLocal && (
-                <div className="absolute top-3 left-3 px-3 py-1 rounded-full gradient-accent text-xs font-semibold shadow-lg">
-                    You
-                </div>
-            )}
         </div>
     );
 }
