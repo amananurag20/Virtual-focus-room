@@ -12,7 +12,11 @@ import {
     HiCheck,
     HiXMark,
     HiComputerDesktop,
-    HiStopCircle
+    HiStopCircle,
+    HiClock,
+    HiPlay,
+    HiPause,
+    HiArrowPath
 } from 'react-icons/hi2';
 import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -25,23 +29,14 @@ import PingOverlay from '@/components/PingOverlay';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 export default function Room() {
     const { roomId } = useParams();
     const navigate = useNavigate();
     const { socket, isConnected } = useSocket();
     const { theme } = useTheme();
-    const {
-        stream,
-        isAudioOn,
-        isVideoOn,
-        isScreenSharing,
-        startStream,
-        stopStream,
-        toggleAudio,
-        toggleVideo,
-        toggleScreenShare
-    } = useMediaStream();
+    const { stream, isAudioOn, isVideoOn, isScreenSharing, startStream, stopStream, toggleAudio, toggleVideo, toggleScreenShare } = useMediaStream();
     const { remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
 
     const [roomInfo, setRoomInfo] = useState(null);
@@ -50,6 +45,7 @@ export default function Room() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isUserListOpen, setIsUserListOpen] = useState(false);
     const [isTodoOpen, setIsTodoOpen] = useState(false);
+    const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
     const [pingTarget, setPingTarget] = useState(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [existingUsers, setExistingUsers] = useState([]);
@@ -57,12 +53,48 @@ export default function Room() {
     const [todos, setTodos] = useState([]);
     const [newTodo, setNewTodo] = useState('');
 
+    const [timerSeconds, setTimerSeconds] = useState(0);
+    const [isTimerRunning, setIsTimerRunning] = useState(false);
+    const [timerMode, setTimerMode] = useState('stopwatch');
+    const [customMinutes, setCustomMinutes] = useState('25');
+    const timerRef = useRef(null);
+
     const username = localStorage.getItem('focusroom_username') || 'Anonymous';
     const localVideoRef = useRef(null);
     const hasJoinedRef = useRef(false);
     const hasCalledPeersRef = useRef(false);
-
     const isDark = theme === 'dark';
+
+    useEffect(() => {
+        if (isTimerRunning) {
+            timerRef.current = setInterval(() => {
+                setTimerSeconds(prev => {
+                    if (timerMode === 'countdown' && prev <= 1) {
+                        setIsTimerRunning(false);
+                        toast.success('Timer complete! Great focus session! 🎉');
+                        return 0;
+                    }
+                    return timerMode === 'stopwatch' ? prev + 1 : prev - 1;
+                });
+            }, 1000);
+        } else {
+            clearInterval(timerRef.current);
+        }
+        return () => clearInterval(timerRef.current);
+    }, [isTimerRunning, timerMode]);
+
+    const formatTime = (seconds) => {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const startStopwatch = () => { setTimerMode('stopwatch'); setTimerSeconds(0); setIsTimerRunning(true); setIsTimerModalOpen(false); };
+    const startCountdown = (mins) => { setTimerMode('countdown'); setTimerSeconds(mins * 60); setIsTimerRunning(true); setIsTimerModalOpen(false); };
+    const toggleTimer = () => setIsTimerRunning(prev => !prev);
+    const resetTimer = () => { setIsTimerRunning(false); setTimerSeconds(0); };
 
     useEffect(() => {
         if (!socket || !isConnected || hasJoinedRef.current) return;
@@ -70,130 +102,63 @@ export default function Room() {
             const mediaStream = await startStream();
             if (mediaStream) toast.success('Camera and microphone ready!');
             else toast.error('Could not access camera/microphone');
-
             socket.emit('room:join', { roomId, username }, (response) => {
                 if (response.success) {
                     setRoomInfo(response.room);
                     hasJoinedRef.current = true;
                     const initialParticipants = {};
-                    response.room.participants.forEach(p => {
-                        if (p.socketId !== socket.id) initialParticipants[p.socketId] = p;
-                    });
+                    response.room.participants.forEach(p => { if (p.socketId !== socket.id) initialParticipants[p.socketId] = p; });
                     setParticipants(initialParticipants);
                     if (response.existingUsers?.length > 0) setExistingUsers(response.existingUsers);
-                } else {
-                    toast.error(response.error || 'Failed to join room');
-                    navigate('/');
-                }
+                } else { toast.error(response.error || 'Failed to join room'); navigate('/'); }
             });
         };
         initRoom();
-        return () => {
-            if (hasJoinedRef.current) {
-                socket.emit('room:leave');
-                closeAllConnections();
-                stopStream();
-            }
-        };
+        return () => { if (hasJoinedRef.current) { socket.emit('room:leave'); closeAllConnections(); stopStream(); } };
     }, [socket, isConnected, roomId]);
 
     useEffect(() => {
         if (!stream || existingUsers.length === 0 || hasCalledPeersRef.current) return;
         hasCalledPeersRef.current = true;
-        existingUsers.forEach((user, index) => {
-            setTimeout(() => initiateCall(user.socketId, user.username), 500 + (index * 500));
-        });
+        existingUsers.forEach((user, index) => { setTimeout(() => initiateCall(user.socketId, user.username), 500 + (index * 500)); });
     }, [stream, existingUsers, initiateCall]);
 
-    useEffect(() => {
-        if (localVideoRef.current && stream) localVideoRef.current.srcObject = stream;
-    }, [stream, isScreenSharing]);
+    useEffect(() => { if (localVideoRef.current && stream) localVideoRef.current.srcObject = stream; }, [stream, isScreenSharing]);
 
     useEffect(() => {
         if (!socket) return;
-        const handleUserJoined = ({ socketId, username }) => {
-            toast.success(`${username} joined`);
-            setParticipants(prev => ({ ...prev, [socketId]: { socketId, username, isAudioOn: true, isVideoOn: true } }));
-        };
-        const handleUserLeft = ({ socketId }) => {
-            const user = participants[socketId];
-            if (user) toast(`${user.username} left`, { icon: '👋' });
-            setParticipants(prev => { const u = { ...prev }; delete u[socketId]; return u; });
-        };
-        const handleMediaToggle = ({ socketId, type, enabled }) => {
-            setParticipants(prev => ({ ...prev, [socketId]: { ...prev[socketId], [type === 'audio' ? 'isAudioOn' : 'isVideoOn']: enabled } }));
-        };
-        const handleChatMessage = (message) => {
-            setMessages(prev => [...prev, message]);
-            if (!isChatOpen && message.socketId !== socket.id) setUnreadCount(prev => prev + 1);
-        };
-        const handlePinged = ({ username }) => {
-            toast(`${username} pinged you!`, { icon: '🔔' });
-            setPingTarget({ socketId: 'local', username });
-            setTimeout(() => setPingTarget(null), 3000);
-        };
-
-        socket.on('user:joined', handleUserJoined);
-        socket.on('user:left', handleUserLeft);
-        socket.on('user:media-toggle', handleMediaToggle);
-        socket.on('chat:message', handleChatMessage);
-        socket.on('user:pinged', handlePinged);
-        return () => {
-            socket.off('user:joined', handleUserJoined);
-            socket.off('user:left', handleUserLeft);
-            socket.off('user:media-toggle', handleMediaToggle);
-            socket.off('chat:message', handleChatMessage);
-            socket.off('user:pinged', handlePinged);
-        };
+        const handleUserJoined = ({ socketId, username }) => { toast.success(`${username} joined`); setParticipants(prev => ({ ...prev, [socketId]: { socketId, username, isAudioOn: true, isVideoOn: true } })); };
+        const handleUserLeft = ({ socketId }) => { const user = participants[socketId]; if (user) toast(`${user.username} left`, { icon: '👋' }); setParticipants(prev => { const u = { ...prev }; delete u[socketId]; return u; }); };
+        const handleMediaToggle = ({ socketId, type, enabled }) => { setParticipants(prev => ({ ...prev, [socketId]: { ...prev[socketId], [type === 'audio' ? 'isAudioOn' : 'isVideoOn']: enabled } })); };
+        const handleChatMessage = (message) => { setMessages(prev => [...prev, message]); if (!isChatOpen && message.socketId !== socket.id) setUnreadCount(prev => prev + 1); };
+        const handlePinged = ({ username }) => { toast(`${username} pinged you!`, { icon: '🔔' }); setPingTarget({ socketId: 'local', username }); setTimeout(() => setPingTarget(null), 3000); };
+        socket.on('user:joined', handleUserJoined); socket.on('user:left', handleUserLeft); socket.on('user:media-toggle', handleMediaToggle); socket.on('chat:message', handleChatMessage); socket.on('user:pinged', handlePinged);
+        return () => { socket.off('user:joined', handleUserJoined); socket.off('user:left', handleUserLeft); socket.off('user:media-toggle', handleMediaToggle); socket.off('chat:message', handleChatMessage); socket.off('user:pinged', handlePinged); };
     }, [socket, isChatOpen, participants]);
 
     const handleToggleAudio = useCallback(() => { const e = toggleAudio(); socket?.emit('media:toggle', { type: 'audio', enabled: e }); }, [socket, toggleAudio]);
     const handleToggleVideo = useCallback(() => { const e = toggleVideo(); socket?.emit('media:toggle', { type: 'video', enabled: e }); }, [socket, toggleVideo]);
-    const handleToggleScreenShare = useCallback(async () => {
-        const result = await toggleScreenShare();
-        if (result) {
-            toast.success('Screen sharing started');
-            socket?.emit('media:toggle', { type: 'screen', enabled: true });
-        } else if (isScreenSharing) {
-            toast('Screen sharing stopped', { icon: '🖥️' });
-            socket?.emit('media:toggle', { type: 'screen', enabled: false });
-        }
-    }, [toggleScreenShare, isScreenSharing, socket]);
+    const handleToggleScreenShare = useCallback(async () => { const result = await toggleScreenShare(); if (result) { toast.success('Screen sharing started'); socket?.emit('media:toggle', { type: 'screen', enabled: true }); } else if (isScreenSharing) { toast('Screen sharing stopped', { icon: '🖥️' }); socket?.emit('media:toggle', { type: 'screen', enabled: false }); } }, [toggleScreenShare, isScreenSharing, socket]);
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
     const handleSendMessage = useCallback((message) => { socket?.emit('chat:message', { message }); }, [socket]);
     const handlePingUser = useCallback((targetSocketId) => { socket?.emit('user:ping', { targetSocketId }); toast.success(`Pinged!`); }, [socket]);
 
-    const toggleChat = () => {
-        setIsChatOpen(prev => !prev);
-        if (!isChatOpen) setUnreadCount(0);
-        setIsUserListOpen(false);
-        setIsTodoOpen(false);
-    };
-    const toggleUserList = () => {
-        setIsUserListOpen(prev => !prev);
-        setIsChatOpen(false);
-        setIsTodoOpen(false);
-    };
-    const toggleTodo = () => {
-        setIsTodoOpen(prev => !prev);
-        setIsChatOpen(false);
-        setIsUserListOpen(false);
-    };
-
-    const addTodo = (e) => {
-        e.preventDefault();
-        if (!newTodo.trim()) return;
-        setTodos(prev => [...prev, { id: Date.now(), text: newTodo.trim(), done: false }]);
-        setNewTodo('');
-    };
-    const toggleTodoDone = (id) => {
-        setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-    };
-    const deleteTodo = (id) => {
-        setTodos(prev => prev.filter(t => t.id !== id));
-    };
+    const toggleChat = () => { setIsChatOpen(prev => !prev); if (!isChatOpen) setUnreadCount(0); setIsUserListOpen(false); setIsTodoOpen(false); };
+    const toggleUserList = () => { setIsUserListOpen(prev => !prev); setIsChatOpen(false); setIsTodoOpen(false); };
+    const toggleTodo = () => { setIsTodoOpen(prev => !prev); setIsChatOpen(false); setIsUserListOpen(false); };
+    const addTodo = (e) => { e.preventDefault(); if (!newTodo.trim()) return; setTodos(prev => [...prev, { id: Date.now(), text: newTodo.trim(), done: false }]); setNewTodo(''); };
+    const toggleTodoDone = (id) => { setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t)); };
+    const deleteTodo = (id) => { setTodos(prev => prev.filter(t => t.id !== id)); };
 
     const participantCount = Object.keys(participants).length + 1;
+
+    // Icon with slash component
+    const IconWithSlash = ({ Icon, isOff, className }) => (
+        <div className={`relative ${className}`}>
+            <Icon className="w-5 h-5" />
+            {isOff && <div className="absolute inset-0 flex items-center justify-center"><div className="w-7 h-0.5 bg-current rotate-45 rounded-full"></div></div>}
+        </div>
+    );
 
     return (
         <div className={`h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'}`}>
@@ -206,66 +171,92 @@ export default function Room() {
                     <div>
                         <h1 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{roomInfo?.name || 'Focus Room'}</h1>
                         <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                {participantCount} online
-                            </span>
-                            {isScreenSharing && (
-                                <>
-                                    <span>•</span>
-                                    <span className="flex items-center gap-1 text-amber-500">
-                                        <HiComputerDesktop className="w-3 h-3" />
-                                        Sharing screen
-                                    </span>
-                                </>
-                            )}
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>{participantCount} online</span>
+                            {isScreenSharing && <><span>•</span><span className="flex items-center gap-1 text-amber-500"><HiComputerDesktop className="w-3 h-3" />Sharing</span></>}
                         </div>
                     </div>
                 </div>
 
-                <Button
-                    variant={isTodoOpen ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={toggleTodo}
-                    className="gap-2"
-                >
-                    <HiClipboardDocumentList className="w-4 h-4" />
-                    <span className="hidden sm:inline">Tasks</span>
-                    {todos.filter(t => !t.done).length > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-bold">
-                            {todos.filter(t => !t.done).length}
-                        </span>
+                <div className="flex items-center gap-2">
+                    {/* Timer Display (if running) */}
+                    {(isTimerRunning || timerSeconds > 0) && (
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer ${isDark ? 'bg-slate-800' : 'bg-white border border-slate-200'}`} onClick={() => setIsTimerModalOpen(true)}>
+                            <HiClock className={`w-4 h-4 ${isTimerRunning ? 'text-green-500' : 'text-slate-400'}`} />
+                            <span className={`font-mono text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatTime(timerSeconds)}</span>
+                            <button onClick={(e) => { e.stopPropagation(); toggleTimer(); }} className={`w-6 h-6 rounded-md flex items-center justify-center ${isTimerRunning ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}`}>
+                                {isTimerRunning ? <HiPause className="w-3 h-3" /> : <HiPlay className="w-3 h-3" />}
+                            </button>
+                        </div>
                     )}
-                </Button>
+
+                    <Button variant={isTodoOpen ? 'default' : 'outline'} size="sm" onClick={toggleTodo} className="gap-2">
+                        <HiClipboardDocumentList className="w-4 h-4" />
+                        <span className="hidden sm:inline">Tasks</span>
+                        {todos.filter(t => !t.done).length > 0 && <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-bold">{todos.filter(t => !t.done).length}</span>}
+                    </Button>
+
+                    <Button variant="outline" size="sm" onClick={() => setIsTimerModalOpen(true)} className="gap-2">
+                        <HiClock className="w-4 h-4" />
+                        <span className="hidden sm:inline">Timer</span>
+                    </Button>
+                </div>
             </header>
+
+            {/* Timer Modal */}
+            <Dialog open={isTimerModalOpen} onOpenChange={setIsTimerModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Focus Timer</DialogTitle>
+                        <DialogDescription>Choose a timer mode to track your focus session.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-6 pt-4">
+                        {/* Current Timer */}
+                        {(isTimerRunning || timerSeconds > 0) && (
+                            <div className="text-center p-6 rounded-xl bg-muted">
+                                <p className="text-4xl font-mono font-bold">{formatTime(timerSeconds)}</p>
+                                <p className="text-sm text-muted-foreground mt-2">{timerMode === 'stopwatch' ? 'Stopwatch' : 'Countdown'}</p>
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    <Button onClick={toggleTimer} variant={isTimerRunning ? 'secondary' : 'default'}>
+                                        {isTimerRunning ? <><HiPause className="w-4 h-4 mr-2" />Pause</> : <><HiPlay className="w-4 h-4 mr-2" />Resume</>}
+                                    </Button>
+                                    <Button onClick={resetTimer} variant="outline"><HiArrowPath className="w-4 h-4 mr-2" />Reset</Button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <p className="text-sm font-medium">Quick Start</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button onClick={startStopwatch} variant="outline" className="h-16 flex-col"><HiClock className="w-5 h-5 mb-1" /><span>Stopwatch</span></Button>
+                                <Button onClick={() => startCountdown(25)} variant="outline" className="h-16 flex-col"><span className="text-lg font-bold">25</span><span className="text-xs">minutes</span></Button>
+                                <Button onClick={() => startCountdown(45)} variant="outline" className="h-16 flex-col"><span className="text-lg font-bold">45</span><span className="text-xs">minutes</span></Button>
+                                <Button onClick={() => startCountdown(60)} variant="outline" className="h-16 flex-col"><span className="text-lg font-bold">60</span><span className="text-xs">minutes</span></Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <p className="text-sm font-medium">Custom Duration</p>
+                            <div className="flex gap-2">
+                                <Input type="number" value={customMinutes} onChange={(e) => setCustomMinutes(e.target.value)} placeholder="Minutes" min="1" max="180" className="flex-1" />
+                                <Button onClick={() => startCountdown(parseInt(customMinutes) || 25)}>Start</Button>
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Main Content */}
             <main className="flex-1 flex overflow-hidden">
                 <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
-                    <VideoGrid
-                        localStream={stream}
-                        localVideoRef={localVideoRef}
-                        isLocalAudioOn={isAudioOn}
-                        isLocalVideoOn={isVideoOn}
-                        isScreenSharing={isScreenSharing}
-                        username={username}
-                        participants={participants}
-                        remoteStreams={remoteStreams}
-                        pingTarget={pingTarget}
-                        onPingUser={handlePingUser}
-                    />
+                    <VideoGrid localStream={stream} localVideoRef={localVideoRef} isLocalAudioOn={isAudioOn} isLocalVideoOn={isVideoOn} isScreenSharing={isScreenSharing} username={username} participants={participants} remoteStreams={remoteStreams} pingTarget={pingTarget} onPingUser={handlePingUser} />
                 </div>
-
                 {isUserListOpen && <UserList participants={participants} username={username} socketId={socket?.id} onPingUser={handlePingUser} onClose={() => setIsUserListOpen(false)} />}
                 {isChatOpen && <ChatPanel messages={messages} currentSocketId={socket?.id} onSendMessage={handleSendMessage} onClose={() => setIsChatOpen(false)} />}
-
                 {isTodoOpen && (
                     <Card className="w-80 h-full border-l rounded-none flex flex-col">
                         <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
                             <CardTitle className="text-base font-semibold">My Tasks</CardTitle>
-                            <Button variant="ghost" size="icon" onClick={() => setIsTodoOpen(false)} className="h-8 w-8 rounded-full">
-                                <HiXMark className="w-5 h-5" />
-                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setIsTodoOpen(false)} className="h-8 w-8 rounded-full"><HiXMark className="w-5 h-5" /></Button>
                         </CardHeader>
                         <CardContent className="flex-1 p-3 overflow-y-auto">
                             <form onSubmit={addTodo} className="flex gap-2 mb-4">
@@ -273,21 +264,13 @@ export default function Room() {
                                 <Button type="submit" size="icon"><HiPlus className="w-4 h-4" /></Button>
                             </form>
                             <div className="space-y-2">
-                                {todos.length === 0 ? (
-                                    <p className="text-center text-sm text-muted-foreground py-8">No tasks yet. Add one above!</p>
-                                ) : (
-                                    todos.map(todo => (
-                                        <div key={todo.id} className={`flex items-center gap-3 p-3 rounded-lg border ${todo.done ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
-                                            <button onClick={() => toggleTodoDone(todo.id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${todo.done ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>
-                                                {todo.done && <HiCheck className="w-3 h-3" />}
-                                            </button>
-                                            <span className={`flex-1 text-sm ${todo.done ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
-                                            <button onClick={() => deleteTodo(todo.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                                                <HiXMark className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))
-                                )}
+                                {todos.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">No tasks yet.</p> : todos.map(todo => (
+                                    <div key={todo.id} className={`flex items-center gap-3 p-3 rounded-lg border ${todo.done ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
+                                        <button onClick={() => toggleTodoDone(todo.id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${todo.done ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>{todo.done && <HiCheck className="w-3 h-3" />}</button>
+                                        <span className={`flex-1 text-sm ${todo.done ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
+                                        <button onClick={() => deleteTodo(todo.id)} className="text-muted-foreground hover:text-destructive"><HiXMark className="w-4 h-4" /></button>
+                                    </div>
+                                ))}
                             </div>
                         </CardContent>
                     </Card>
@@ -297,71 +280,23 @@ export default function Room() {
             {/* Control Bar */}
             <footer className="py-4 flex items-center justify-center shrink-0">
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark ? 'bg-slate-800/90 border-white/10' : 'bg-white/90 border-slate-200'}`}>
-                    {/* Mic */}
-                    <button
-                        onClick={handleToggleAudio}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
-                        title={isAudioOn ? 'Mute' : 'Unmute'}
-                    >
-                        <HiMicrophone className="w-5 h-5" />
+                    <button onClick={handleToggleAudio} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`} title={isAudioOn ? 'Mute' : 'Unmute'}>
+                        <IconWithSlash Icon={HiMicrophone} isOff={!isAudioOn} />
                     </button>
-
-                    {/* Camera */}
-                    <button
-                        onClick={handleToggleVideo}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
-                        title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
-                    >
-                        <HiVideoCamera className="w-5 h-5" />
+                    <button onClick={handleToggleVideo} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`} title={isVideoOn ? 'Camera off' : 'Camera on'}>
+                        <IconWithSlash Icon={HiVideoCamera} isOff={!isVideoOn} />
                     </button>
-
-                    {/* Screen Share */}
-                    <button
-                        onClick={handleToggleScreenShare}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isScreenSharing
-                                ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse'
-                                : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                            }`}
-                        title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
-                    >
+                    <button onClick={handleToggleScreenShare} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isScreenSharing ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`} title={isScreenSharing ? 'Stop sharing' : 'Share screen'}>
                         {isScreenSharing ? <HiStopCircle className="w-5 h-5" /> : <HiComputerDesktop className="w-5 h-5" />}
                     </button>
-
                     <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
-
-                    {/* Participants */}
-                    <button
-                        onClick={toggleUserList}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
-                        title="Participants"
-                    >
-                        <HiUserGroup className="w-5 h-5" />
-                    </button>
-
-                    {/* Chat */}
-                    <button
-                        onClick={toggleChat}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
-                        title="Chat"
-                    >
+                    <button onClick={toggleUserList} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`} title="Participants"><HiUserGroup className="w-5 h-5" /></button>
+                    <button onClick={toggleChat} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`} title="Chat">
                         <HiChatBubbleLeftRight className="w-5 h-5" />
-                        {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] flex items-center justify-center font-bold text-white">
-                                {unreadCount > 9 ? '9+' : unreadCount}
-                            </span>
-                        )}
+                        {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] flex items-center justify-center font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
                     </button>
-
                     <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
-
-                    {/* Leave */}
-                    <button
-                        onClick={handleLeaveRoom}
-                        className="h-11 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2 transition-all duration-200"
-                    >
-                        <HiPhone className="w-4 h-4 rotate-[135deg]" />
-                        <span className="text-sm">Leave</span>
-                    </button>
+                    <button onClick={handleLeaveRoom} className="h-11 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2"><HiPhone className="w-4 h-4 rotate-[135deg]" /><span className="text-sm">Leave</span></button>
                 </div>
             </footer>
 
