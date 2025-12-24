@@ -15,6 +15,7 @@ const { setupSocketHandlers } = require('./handlers/socketHandlers');
 const authRoutes = require('./routes/authRoutes');
 const tierRoutes = require('./routes/tierRoutes');
 const todoRoutes = require('./routes/todoRoutes');
+const statsRoutes = require('./routes/statsRoutes');
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ mongoose.connect(MONGO_URI)
 app.use('/api/auth', authRoutes);
 app.use('/api/tiers', tierRoutes);
 app.use('/api/todos', todoRoutes);
+app.use('/api/stats', statsRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

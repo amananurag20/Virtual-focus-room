@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getTodos, createTodo, toggleTodo, deleteTodo as deleteTodoService } from '@/services/todoService';
+import { recordSession } from '@/services/sessionService';
 
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -63,6 +64,7 @@ export default function Room() {
 
     const [todos, setTodos] = useState([]);
     const [newTodo, setNewTodo] = useState('');
+    const [currentSessionId, setCurrentSessionId] = useState(null);
 
     const [timerSeconds, setTimerSeconds] = useState(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -127,7 +129,7 @@ export default function Room() {
                 toast('You are in view-only mode as a guest', { icon: '👁️' });
             }
 
-            socket.emit('room:join', { roomId, username, userTier: tier }, (response) => {
+            socket.emit('room:join', { roomId, username, userTier: tier }, async (response) => {
                 if (response.success) {
                     setRoomInfo(response.room);
                     hasJoinedRef.current = true;
@@ -135,11 +137,27 @@ export default function Room() {
                     response.room.participants.forEach(p => { if (p.socketId !== socket.id) initialParticipants[p.socketId] = p; });
                     setParticipants(initialParticipants);
                     if (response.existingUsers?.length > 0) setExistingUsers(response.existingUsers);
+
+                    // Record session start
+                    if (isLoggedIn) {
+                        const sessionRes = await recordSession(roomId, 'start');
+                        if (sessionRes.success) setCurrentSessionId(sessionRes.sessionId);
+                    }
                 } else { toast.error(response.error || 'Failed to join room'); navigate('/'); }
             });
         };
         initRoom();
-        return () => { if (hasJoinedRef.current) { socket.emit('room:leave'); closeAllConnections(); stopStream(); } };
+        return () => {
+            if (hasJoinedRef.current) {
+                // Record session end
+                if (isLoggedIn && currentSessionId) {
+                    recordSession(roomId, 'end', currentSessionId);
+                }
+                socket.emit('room:leave');
+                closeAllConnections();
+                stopStream();
+            }
+        };
     }, [socket, isConnected, roomId, permissions]);
 
     useEffect(() => {

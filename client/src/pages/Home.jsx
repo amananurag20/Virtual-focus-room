@@ -32,6 +32,7 @@ import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth, USER_TIERS } from '@/context/AuthContext';
 import CalendarModal from '@/components/CalendarModal';
+import Dashboard from '@/components/Dashboard';
 
 // Shadcn/ui components
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,7 @@ export default function Home() {
     const [paymentProcessing, setPaymentProcessing] = useState(false);
     const [activeUsers, setActiveUsers] = useState(247);
     const [calendarOpen, setCalendarOpen] = useState(false);
+    const [dashboardOpen, setDashboardOpen] = useState(false);
 
     // Auth form states
     const [authEmail, setAuthEmail] = useState('');
@@ -230,15 +232,26 @@ export default function Home() {
 
                     <div className="flex items-center gap-3">
                         {isLoggedIn && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setCalendarOpen(true)}
-                                className="rounded-full"
-                                title="Calendar & Tasks"
-                            >
-                                <HiCalendar className="w-5 h-5" />
-                            </Button>
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setDashboardOpen(true)}
+                                    className="rounded-full"
+                                    title="Dashboard"
+                                >
+                                    <HiChartBar className="w-5 h-5" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setCalendarOpen(true)}
+                                    className="rounded-full"
+                                    title="Calendar & Tasks"
+                                >
+                                    <HiCalendar className="w-5 h-5" />
+                                </Button>
+                            </>
                         )}
                         <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
                             {theme === 'dark' ? <HiSun className="w-5 h-5" /> : <HiMoon className="w-5 h-5" />}
@@ -944,6 +957,9 @@ export default function Home() {
                     </p>
                 </div>
             </footer>
+
+            <Dashboard isOpen={dashboardOpen} onClose={() => setDashboardOpen(false)} />
+            <CalendarModal isOpen={calendarOpen} onClose={() => setCalendarOpen(false)} />
         </div>
     );
 }
