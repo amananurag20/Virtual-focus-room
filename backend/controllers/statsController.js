@@ -191,3 +191,24 @@ exports.getDashboardData = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+// Toggle session privacy
+exports.toggleSessionPrivacy = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const userId = req.user._id;
+
+        const session = await Session.findOne({ _id: sessionId, userId });
+        if (!session) {
+            return res.status(404).json({ success: false, message: 'Session not found' });
+        }
+
+        session.isPrivate = !session.isPrivate;
+        await session.save();
+
+        res.json({ success: true, isPrivate: session.isPrivate });
+    } catch (error) {
+        console.error('Error toggling privacy:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};

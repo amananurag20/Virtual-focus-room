@@ -11,6 +11,8 @@ import ChatHistory from '@/components/dashboard/ChatHistory';
 export default function Dashboard() {
     const navigate = useNavigate();
     const { user, isLoggedIn } = useAuth();
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [selectedSessionId, setSelectedSessionId] = useState(null);
 
     useEffect(() => {
