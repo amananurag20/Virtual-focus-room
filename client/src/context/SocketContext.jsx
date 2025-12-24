@@ -5,8 +5,11 @@ const SocketContext = createContext(null);
 
 // Use the current hostname so it works both on localhost and network
 const getSocketUrl = () => {
+    if (import.meta.env.VITE_SOCKET_URL) {
+        return import.meta.env.VITE_SOCKET_URL;
+    }
     const hostname = window.location.hostname;
-    return `http://${hostname}:5000`;
+    return `http://${hostname}:3000`;
 };
 
 export function SocketProvider({ children }) {

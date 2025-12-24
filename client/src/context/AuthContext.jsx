@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
-const API_URL = 'http://localhost:3000/api/auth';
+const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth`;
 
 // User tiers
 export const USER_TIERS = {
