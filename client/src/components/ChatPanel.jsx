@@ -36,7 +36,8 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
                 name: att.name,
                 type: att.type,
                 size: att.size,
-                url: att.url || att.preview
+                url: att.url || att.preview,
+                file: att.file
             }))
         };
 

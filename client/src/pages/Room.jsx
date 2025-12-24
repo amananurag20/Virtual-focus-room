@@ -226,10 +226,29 @@ export default function Room() {
 
         // Persist message if logged in and in a session
         if (isLoggedIn && currentSessionId) {
-            // Note: Currently we only save text messages here. Media attachments would need separate upload logic
-            // or we could integrate uploadToCloudinary here if needed.
-            // For now, saving text content.
-            if (message && message.trim()) {
+            const hasAttachments = attachments && attachments.length > 0;
+
+            if (hasAttachments) {
+                // Upload attachments
+                // We'll save the first attachment with the message text,
+                // and subsequent attachments as separate messages to fit the 1-media-per-message model
+                attachments.forEach((att, index) => {
+                    const content = index === 0 ? (message || '') : '';
+                    if (att.file) {
+                        saveMessage({
+                            roomId,
+                            sessionId: currentSessionId,
+                            content
+                        }, att.file); // Pass the file object
+                    }
+                });
+
+                // If there's message text but was not saved with first attachment (e.g. if first att had no file object for some reason, though unlikely given logic)
+                // actually the above loop covers it if there are attachments.
+                // But if attachments have no 'file' (e.g. from some other source?), we might miss text.
+                // Assuming ChatPanel passes 'file'.
+            } else if (message && message.trim()) {
+                // Text only
                 saveMessage({
                     roomId,
                     sessionId: currentSessionId,

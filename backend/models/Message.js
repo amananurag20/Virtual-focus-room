@@ -17,8 +17,7 @@ const messageSchema = new mongoose.Schema({
         ref: 'Session'
     },
     content: {
-        type: String,
-        required: true
+        type: String
     },
     mediaUrl: {
         type: String // Cloudinary URL if media attached

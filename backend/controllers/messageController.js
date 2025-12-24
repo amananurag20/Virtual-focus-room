@@ -43,15 +43,17 @@ exports.saveMessage = async (req, res) => {
             mediaUrl = uploadResult.url;
             mediaType = uploadResult.type === 'image' ? 'image' : uploadResult.type === 'video' ? 'video' : 'file';
 
-            // Delete temporary file
-            fs.unlinkSync(req.file.path);
+            // Delete temporary file after successful upload
+            if (fs.existsSync(req.file.path)) {
+                fs.unlinkSync(req.file.path);
+            }
         }
 
         const message = new Message({
             userId,
             roomId,
             sessionId,
-            content,
+            content: content || '', // Ensure content is not undefined
             mediaUrl,
             mediaType
         });
@@ -60,8 +62,14 @@ exports.saveMessage = async (req, res) => {
         res.json({ success: true, message });
     } catch (error) {
         console.error('Error saving message:', error);
-        // Clean up temp file on error
-        if (req.file) fs.unlinkSync(req.file.path);
+        // Clean up temp file on error if it still exists
+        try {
+            if (req.file && fs.existsSync(req.file.path)) {
+                fs.unlinkSync(req.file.path);
+            }
+        } catch (unlinkError) {
+            console.error('Error deleting temp file:', unlinkError);
+        }
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
