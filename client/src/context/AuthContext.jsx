@@ -11,7 +11,9 @@ import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth`;
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_AUTH = `${API_BASE}/api/auth`;
+const API_TIERS = `${API_BASE}/api/tiers`;
 
 // User tiers
 export const USER_TIERS = {
@@ -58,13 +60,30 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('focusroom_token'));
     const [isLoading, setIsLoading] = useState(true);
+    const [tierPermissions, setTierPermissions] = useState(TIER_PERMISSIONS);
+
+    // Fetch tier permissions from backend
+    useEffect(() => {
+        const fetchTiers = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/tiers`);
+                const data = await res.json();
+                if (data.success && data.tiers) {
+                    setTierPermissions(data.tiers);
+                }
+            } catch (err) {
+                console.error("Failed to load tier permissions:", err);
+            }
+        };
+        fetchTiers();
+    }, []);
 
     // Load user profile if token exists
     useEffect(() => {
         const loadUser = async () => {
             if (token) {
                 try {
-                    const res = await fetch(`${API_URL}/profile`, {
+                    const res = await fetch(`${API_AUTH}/profile`, {
                         headers: {
                             'Authorization': `Bearer ${token}`
                         }
@@ -92,12 +111,12 @@ export function AuthProvider({ children }) {
 
     // Get current tier
     const tier = user?.tier || USER_TIERS.GUEST;
-    const permissions = TIER_PERMISSIONS[tier];
+    const permissions = tierPermissions[tier] || tierPermissions[USER_TIERS.GUEST];
 
     // Login function
     const login = async (email, password) => {
         try {
-            const res = await fetch(`${API_URL}/login`, {
+            const res = await fetch(`${API_AUTH}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -123,7 +142,7 @@ export function AuthProvider({ children }) {
     // Signup function
     const signup = async (email, password, name) => {
         try {
-            const res = await fetch(`${API_URL}/signup`, {
+            const res = await fetch(`${API_AUTH}/signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password })
@@ -163,7 +182,7 @@ export function AuthProvider({ children }) {
         }
 
         try {
-            const res = await fetch(`${API_URL}/upgrade`, {
+            const res = await fetch(`${API_AUTH}/upgrade`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
