@@ -1,5 +1,6 @@
 /**
  * Room Management Utilities
+ * Supports public and private rooms, user tiers
  */
 
 // In-memory storage for rooms and users
@@ -16,6 +17,7 @@ function getRoomData(roomId) {
     const participants = Array.from(room.participants.values()).map(user => ({
         socketId: user.socketId,
         username: user.username,
+        userTier: user.userTier,
         isAudioOn: user.isAudioOn,
         isVideoOn: user.isVideoOn
     }));
@@ -23,6 +25,8 @@ function getRoomData(roomId) {
     return {
         id: roomId,
         name: room.name,
+        isPrivate: room.isPrivate || false,
+        creatorTier: room.creatorTier,
         participants,
         createdAt: room.createdAt
     };
@@ -37,6 +41,7 @@ function getAllRooms() {
         roomList.push({
             id: roomId,
             name: room.name,
+            isPrivate: room.isPrivate || false,
             participantCount: room.participants.size,
             createdAt: room.createdAt
         });
@@ -46,12 +51,19 @@ function getAllRooms() {
 
 /**
  * Create a new room
+ * @param {string} roomName - Name of the room
+ * @param {boolean} isPrivate - Whether the room is private
+ * @param {string} password - Optional password for private rooms
+ * @param {string} creatorTier - Tier of the room creator
  */
-function createRoom(roomName) {
+function createRoom(roomName, isPrivate = false, password = null, creatorTier = 'free') {
     const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const room = {
         name: roomName || `Room ${roomId.slice(-4)}`,
+        isPrivate: isPrivate && creatorTier === 'premium',
+        password: isPrivate && creatorTier === 'premium' ? password : null,
+        creatorTier,
         participants: new Map(),
         messages: [],
         createdAt: new Date().toISOString()
@@ -63,23 +75,48 @@ function createRoom(roomName) {
 
 /**
  * Add user to room
+ * @param {string} roomId - Room ID
+ * @param {string} socketId - User socket ID
+ * @param {string} username - Username
+ * @param {string} userTier - User tier (guest/free/premium)
  */
-function addUserToRoom(roomId, socketId, username) {
+function addUserToRoom(roomId, socketId, username, userTier = 'guest') {
     const room = rooms.get(roomId);
     if (!room) return null;
+
+    // Guests cannot enable video/audio by default
+    const isGuest = userTier === 'guest';
 
     const userData = {
         socketId,
         username: username || `User_${socketId.slice(-4)}`,
         roomId,
-        isAudioOn: true,
-        isVideoOn: true
+        userTier,
+        isAudioOn: !isGuest,
+        isVideoOn: !isGuest
     };
 
     room.participants.set(socketId, userData);
     users.set(socketId, userData);
 
     return userData;
+}
+
+/**
+ * Verify room password
+ */
+function verifyRoomPassword(roomId, password) {
+    const room = rooms.get(roomId);
+    if (!room || !room.isPrivate) return true;
+    return room.password === password;
+}
+
+/**
+ * Check if room is private
+ */
+function isRoomPrivate(roomId) {
+    const room = rooms.get(roomId);
+    return room?.isPrivate || false;
 }
 
 /**
@@ -125,6 +162,11 @@ function updateUserMedia(socketId, type, enabled) {
     const user = users.get(socketId);
     if (!user) return null;
 
+    // Guests cannot enable video/audio
+    if (user.userTier === 'guest' && (type === 'audio' || type === 'video')) {
+        return user; // Don't update for guests
+    }
+
     if (type === "audio") {
         user.isAudioOn = enabled;
     } else if (type === "video") {
@@ -162,5 +204,7 @@ module.exports = {
     getUser,
     getRoom,
     updateUserMedia,
-    addMessageToRoom
+    addMessageToRoom,
+    verifyRoomPassword,
+    isRoomPrivate
 };

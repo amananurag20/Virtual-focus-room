@@ -16,10 +16,14 @@ import {
     HiClock,
     HiPlay,
     HiPause,
-    HiArrowPath
+    HiArrowPath,
+    HiLockClosed,
+    HiStar,
+    HiEye
 } from 'react-icons/hi2';
 import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useMediaStream } from '@/hooks/useMediaStream';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import VideoGrid from '@/components/VideoGrid';
@@ -36,6 +40,7 @@ export default function Room() {
     const navigate = useNavigate();
     const { socket, isConnected } = useSocket();
     const { theme } = useTheme();
+    const { user, tier, isGuest, isLoggedIn, isPremium, permissions } = useAuth();
     const { stream, isAudioOn, isVideoOn, isScreenSharing, startStream, stopStream, toggleAudio, toggleVideo, toggleScreenShare } = useMediaStream();
     const { remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
 
@@ -49,6 +54,7 @@ export default function Room() {
     const [pingTarget, setPingTarget] = useState(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [existingUsers, setExistingUsers] = useState([]);
+    const [showGuestBanner, setShowGuestBanner] = useState(isGuest);
 
     const [todos, setTodos] = useState([]);
     const [newTodo, setNewTodo] = useState('');
@@ -59,11 +65,19 @@ export default function Room() {
     const [customMinutes, setCustomMinutes] = useState('25');
     const timerRef = useRef(null);
 
-    const username = localStorage.getItem('focusroom_username') || 'Anonymous';
+    const username = user?.name || localStorage.getItem('focusroom_username') || 'Anonymous';
     const localVideoRef = useRef(null);
     const hasJoinedRef = useRef(false);
     const hasCalledPeersRef = useRef(false);
     const isDark = theme === 'dark';
+
+    // Show restriction toast for guests
+    const showRestrictionToast = (feature) => {
+        toast.error(`${feature} is not available for guests. Please sign up!`, {
+            icon: '🔒',
+            duration: 4000
+        });
+    };
 
     useEffect(() => {
         if (isTimerRunning) {
@@ -99,10 +113,16 @@ export default function Room() {
     useEffect(() => {
         if (!socket || !isConnected || hasJoinedRef.current) return;
         const initRoom = async () => {
-            const mediaStream = await startStream();
-            if (mediaStream) toast.success('Camera and microphone ready!');
-            else toast.error('Could not access camera/microphone');
-            socket.emit('room:join', { roomId, username }, (response) => {
+            // Only start stream if user has permissions
+            if (permissions.canToggleVideo || permissions.canToggleAudio) {
+                const mediaStream = await startStream();
+                if (mediaStream) toast.success('Camera and microphone ready!');
+                else toast.error('Could not access camera/microphone');
+            } else {
+                toast('You are in view-only mode as a guest', { icon: '👁️' });
+            }
+
+            socket.emit('room:join', { roomId, username, userTier: tier }, (response) => {
                 if (response.success) {
                     setRoomInfo(response.room);
                     hasJoinedRef.current = true;
@@ -115,7 +135,7 @@ export default function Room() {
         };
         initRoom();
         return () => { if (hasJoinedRef.current) { socket.emit('room:leave'); closeAllConnections(); stopStream(); } };
-    }, [socket, isConnected, roomId]);
+    }, [socket, isConnected, roomId, permissions]);
 
     useEffect(() => {
         if (!stream || existingUsers.length === 0 || hasCalledPeersRef.current) return;
@@ -127,7 +147,10 @@ export default function Room() {
 
     useEffect(() => {
         if (!socket) return;
-        const handleUserJoined = ({ socketId, username }) => { toast.success(`${username} joined`); setParticipants(prev => ({ ...prev, [socketId]: { socketId, username, isAudioOn: true, isVideoOn: true } })); };
+        const handleUserJoined = ({ socketId, username, userTier }) => {
+            toast.success(`${username} joined${userTier === 'guest' ? ' (guest)' : ''}`);
+            setParticipants(prev => ({ ...prev, [socketId]: { socketId, username, userTier, isAudioOn: userTier !== 'guest', isVideoOn: userTier !== 'guest' } }));
+        };
         const handleUserLeft = ({ socketId }) => { const user = participants[socketId]; if (user) toast(`${user.username} left`, { icon: '👋' }); setParticipants(prev => { const u = { ...prev }; delete u[socketId]; return u; }); };
         const handleMediaToggle = ({ socketId, type, enabled }) => { setParticipants(prev => ({ ...prev, [socketId]: { ...prev[socketId], [type === 'audio' ? 'isAudioOn' : 'isVideoOn']: enabled } })); };
         const handleChatMessage = (message) => { setMessages(prev => [...prev, message]); if (!isChatOpen && message.socketId !== socket.id) setUnreadCount(prev => prev + 1); };
@@ -136,12 +159,57 @@ export default function Room() {
         return () => { socket.off('user:joined', handleUserJoined); socket.off('user:left', handleUserLeft); socket.off('user:media-toggle', handleMediaToggle); socket.off('chat:message', handleChatMessage); socket.off('user:pinged', handlePinged); };
     }, [socket, isChatOpen, participants]);
 
-    const handleToggleAudio = useCallback(() => { const e = toggleAudio(); socket?.emit('media:toggle', { type: 'audio', enabled: e }); }, [socket, toggleAudio]);
-    const handleToggleVideo = useCallback(() => { const e = toggleVideo(); socket?.emit('media:toggle', { type: 'video', enabled: e }); }, [socket, toggleVideo]);
-    const handleToggleScreenShare = useCallback(async () => { const result = await toggleScreenShare(); if (result) { toast.success('Screen sharing started'); socket?.emit('media:toggle', { type: 'screen', enabled: true }); } else if (isScreenSharing) { toast('Screen sharing stopped', { icon: '🖥️' }); socket?.emit('media:toggle', { type: 'screen', enabled: false }); } }, [toggleScreenShare, isScreenSharing, socket]);
+    const handleToggleAudio = useCallback(() => {
+        if (!permissions.canToggleAudio) {
+            showRestrictionToast('Microphone');
+            return;
+        }
+        const e = toggleAudio();
+        socket?.emit('media:toggle', { type: 'audio', enabled: e });
+    }, [socket, toggleAudio, permissions]);
+
+    const handleToggleVideo = useCallback(() => {
+        if (!permissions.canToggleVideo) {
+            showRestrictionToast('Camera');
+            return;
+        }
+        const e = toggleVideo();
+        socket?.emit('media:toggle', { type: 'video', enabled: e });
+    }, [socket, toggleVideo, permissions]);
+
+    const handleToggleScreenShare = useCallback(async () => {
+        if (!permissions.canShareScreen) {
+            showRestrictionToast('Screen sharing');
+            return;
+        }
+        const result = await toggleScreenShare();
+        if (result) {
+            toast.success('Screen sharing started');
+            socket?.emit('media:toggle', { type: 'screen', enabled: true });
+        } else if (isScreenSharing) {
+            toast('Screen sharing stopped', { icon: '🖥️' });
+            socket?.emit('media:toggle', { type: 'screen', enabled: false });
+        }
+    }, [toggleScreenShare, isScreenSharing, socket, permissions]);
+
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
-    const handleSendMessage = useCallback((message) => { socket?.emit('chat:message', { message }); }, [socket]);
-    const handlePingUser = useCallback((targetSocketId) => { socket?.emit('user:ping', { targetSocketId }); toast.success(`Pinged!`); }, [socket]);
+
+    const handleSendMessage = useCallback((message, attachments = []) => {
+        if (!permissions.canChat) {
+            showRestrictionToast('Chat');
+            return;
+        }
+        socket?.emit('chat:message', { message, attachments });
+    }, [socket, permissions]);
+
+    const handlePingUser = useCallback((targetSocketId) => {
+        if (!permissions.canPingUsers) {
+            showRestrictionToast('Ping');
+            return;
+        }
+        socket?.emit('user:ping', { targetSocketId });
+        toast.success(`Pinged!`);
+    }, [socket, permissions]);
 
     const toggleChat = () => { setIsChatOpen(prev => !prev); if (!isChatOpen) setUnreadCount(0); setIsUserListOpen(false); setIsTodoOpen(false); };
     const toggleUserList = () => { setIsUserListOpen(prev => !prev); setIsChatOpen(false); setIsTodoOpen(false); };
@@ -160,8 +228,47 @@ export default function Room() {
         </div>
     );
 
+    // Locked icon for guests
+    const LockedControl = ({ Icon, label, onClick }) => (
+        <button
+            onClick={onClick}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all relative ${isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-300 text-slate-400'}`}
+            title={`${label} (Sign up required)`}
+        >
+            <Icon className="w-5 h-5 opacity-50" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                <HiLockClosed className="w-2.5 h-2.5 text-white" />
+            </div>
+        </button>
+    );
+
     return (
         <div className={`h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'}`}>
+            {/* Guest Banner */}
+            {showGuestBanner && isGuest && (
+                <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <HiEye className="w-5 h-5" />
+                        <p className="text-sm font-medium">
+                            You're viewing as a guest. <span className="opacity-80">Video, audio, and chat are disabled.</span>
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0"
+                            onClick={() => navigate('/')}
+                        >
+                            Sign Up Free
+                        </Button>
+                        <button onClick={() => setShowGuestBanner(false)} className="p-1 hover:bg-white/20 rounded">
+                            <HiXMark className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <header className={`h-14 px-5 flex items-center justify-between shrink-0 ${isDark ? '' : 'border-b border-slate-200'}`}>
                 <div className="flex items-center gap-3">
@@ -169,15 +276,30 @@ export default function Room() {
                         <HiVideoCamera className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                        <h1 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{roomInfo?.name || 'Focus Room'}</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{roomInfo?.name || 'Focus Room'}</h1>
+                            {roomInfo?.isPrivate && (
+                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 text-[10px] font-medium">
+                                    <HiLockClosed className="w-2.5 h-2.5" /> Private
+                                </span>
+                            )}
+                        </div>
                         <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>{participantCount} online</span>
                             {isScreenSharing && <><span>•</span><span className="flex items-center gap-1 text-amber-500"><HiComputerDesktop className="w-3 h-3" />Sharing</span></>}
+                            {isGuest && <><span>•</span><span className="flex items-center gap-1 text-amber-500"><HiEye className="w-3 h-3" />View Only</span></>}
                         </div>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* User Tier Badge */}
+                    {isPremium && (
+                        <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-medium">
+                            <HiStar className="w-3 h-3" /> Premium
+                        </span>
+                    )}
+
                     {/* Timer Display (if running) */}
                     {(isTimerRunning || timerSeconds > 0) && (
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer ${isDark ? 'bg-slate-800' : 'bg-white border border-slate-200'}`} onClick={() => setIsTimerModalOpen(true)}>
@@ -248,7 +370,19 @@ export default function Room() {
             {/* Main Content */}
             <main className="flex-1 flex overflow-hidden">
                 <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
-                    <VideoGrid localStream={stream} localVideoRef={localVideoRef} isLocalAudioOn={isAudioOn} isLocalVideoOn={isVideoOn} isScreenSharing={isScreenSharing} username={username} participants={participants} remoteStreams={remoteStreams} pingTarget={pingTarget} onPingUser={handlePingUser} />
+                    <VideoGrid
+                        localStream={stream}
+                        localVideoRef={localVideoRef}
+                        isLocalAudioOn={isAudioOn}
+                        isLocalVideoOn={isVideoOn}
+                        isScreenSharing={isScreenSharing}
+                        username={username}
+                        participants={participants}
+                        remoteStreams={remoteStreams}
+                        pingTarget={pingTarget}
+                        onPingUser={handlePingUser}
+                        isGuest={isGuest}
+                    />
                 </div>
                 {isUserListOpen && <UserList participants={participants} username={username} socketId={socket?.id} onPingUser={handlePingUser} onClose={() => setIsUserListOpen(false)} />}
                 {isChatOpen && <ChatPanel messages={messages} currentSocketId={socket?.id} onSendMessage={handleSendMessage} onClose={() => setIsChatOpen(false)} />}
@@ -280,23 +414,77 @@ export default function Room() {
             {/* Control Bar */}
             <footer className="py-4 flex items-center justify-center shrink-0">
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark ? 'bg-slate-800/90 border-white/10' : 'bg-white/90 border-slate-200'}`}>
-                    <button onClick={handleToggleAudio} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`} title={isAudioOn ? 'Mute' : 'Unmute'}>
-                        <IconWithSlash Icon={HiMicrophone} isOff={!isAudioOn} />
-                    </button>
-                    <button onClick={handleToggleVideo} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`} title={isVideoOn ? 'Camera off' : 'Camera on'}>
-                        <IconWithSlash Icon={HiVideoCamera} isOff={!isVideoOn} />
-                    </button>
-                    <button onClick={handleToggleScreenShare} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isScreenSharing ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`} title={isScreenSharing ? 'Stop sharing' : 'Share screen'}>
-                        {isScreenSharing ? <HiStopCircle className="w-5 h-5" /> : <HiComputerDesktop className="w-5 h-5" />}
-                    </button>
+                    {/* Audio Control */}
+                    {permissions.canToggleAudio ? (
+                        <button
+                            onClick={handleToggleAudio}
+                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                            title={isAudioOn ? 'Mute' : 'Unmute'}
+                        >
+                            <IconWithSlash Icon={HiMicrophone} isOff={!isAudioOn} />
+                        </button>
+                    ) : (
+                        <LockedControl Icon={HiMicrophone} label="Microphone" onClick={() => showRestrictionToast('Microphone')} />
+                    )}
+
+                    {/* Video Control */}
+                    {permissions.canToggleVideo ? (
+                        <button
+                            onClick={handleToggleVideo}
+                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                            title={isVideoOn ? 'Camera off' : 'Camera on'}
+                        >
+                            <IconWithSlash Icon={HiVideoCamera} isOff={!isVideoOn} />
+                        </button>
+                    ) : (
+                        <LockedControl Icon={HiVideoCamera} label="Camera" onClick={() => showRestrictionToast('Camera')} />
+                    )}
+
+                    {/* Screen Share Control */}
+                    {permissions.canShareScreen ? (
+                        <button
+                            onClick={handleToggleScreenShare}
+                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isScreenSharing ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+                        >
+                            {isScreenSharing ? <HiStopCircle className="w-5 h-5" /> : <HiComputerDesktop className="w-5 h-5" />}
+                        </button>
+                    ) : (
+                        <LockedControl Icon={HiComputerDesktop} label="Screen sharing" onClick={() => showRestrictionToast('Screen sharing')} />
+                    )}
+
                     <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
-                    <button onClick={toggleUserList} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`} title="Participants"><HiUserGroup className="w-5 h-5" /></button>
-                    <button onClick={toggleChat} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`} title="Chat">
+
+                    {/* Participants */}
+                    <button
+                        onClick={toggleUserList}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                        title="Participants"
+                    >
+                        <HiUserGroup className="w-5 h-5" />
+                    </button>
+
+                    {/* Chat Control */}
+                    <button
+                        onClick={toggleChat}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                        title="Chat"
+                    >
                         <HiChatBubbleLeftRight className="w-5 h-5" />
                         {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] flex items-center justify-center font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                        {!permissions.canChat && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                                <HiEye className="w-2.5 h-2.5 text-white" />
+                            </div>
+                        )}
                     </button>
+
                     <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
-                    <button onClick={handleLeaveRoom} className="h-11 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2"><HiPhone className="w-4 h-4 rotate-[135deg]" /><span className="text-sm">Leave</span></button>
+
+                    {/* Leave Button */}
+                    <button onClick={handleLeaveRoom} className="h-11 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2">
+                        <HiPhone className="w-4 h-4 rotate-[135deg]" /><span className="text-sm">Leave</span>
+                    </button>
                 </div>
             </footer>
 

@@ -10,7 +10,8 @@ export default function VideoGrid({
     participants,
     remoteStreams,
     pingTarget,
-    onPingUser
+    onPingUser,
+    isGuest = false
 }) {
     const participantList = Object.values(participants);
     const totalParticipants = participantList.length + 1;
@@ -44,6 +45,7 @@ export default function VideoGrid({
                 isAudioOn={isLocalAudioOn}
                 isVideoOn={isLocalVideoOn || isScreenSharing}
                 isScreenSharing={isScreenSharing}
+                isGuest={isGuest}
             />
             {participantList.map((participant) => (
                 <VideoPlayer
@@ -55,6 +57,7 @@ export default function VideoGrid({
                     isVideoOn={participant.isVideoOn}
                     isPinged={pingTarget?.socketId === participant.socketId}
                     onPing={() => onPingUser(participant.socketId)}
+                    userTier={participant.userTier}
                 />
             ))}
         </div>

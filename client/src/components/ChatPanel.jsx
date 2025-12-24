@@ -1,11 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { HiXMark, HiPaperAirplane } from 'react-icons/hi2';
+import { HiXMark, HiPaperAirplane, HiPaperClip, HiPhoto, HiDocument, HiLockClosed } from 'react-icons/hi2';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useAuth } from '@/context/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function ChatPanel({ messages, currentSocketId, onSendMessage, onClose }) {
+    const { isGuest, permissions, isLoggedIn } = useAuth();
     const [message, setMessage] = useState('');
+    const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const [attachments, setAttachments] = useState([]);
+    const fileInputRef = useRef(null);
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
@@ -14,9 +20,103 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!message.trim()) return;
-        onSendMessage(message.trim());
+
+        // Check permissions
+        if (!permissions.canChat) {
+            toast.error('Guests cannot send messages. Please sign up!');
+            return;
+        }
+
+        if (!message.trim() && attachments.length === 0) return;
+
+        // Build message with attachments
+        const messageData = {
+            text: message.trim(),
+            attachments: attachments.map(att => ({
+                name: att.name,
+                type: att.type,
+                size: att.size,
+                url: att.url || att.preview
+            }))
+        };
+
+        onSendMessage(message.trim(), messageData.attachments);
         setMessage('');
+        setAttachments([]);
+        setShowAttachMenu(false);
+    };
+
+    const handleFileSelect = (e) => {
+        if (!permissions.canSendAttachments) {
+            toast.error('Please sign up to send attachments');
+            return;
+        }
+
+        const files = Array.from(e.target.files);
+        const maxSize = 5 * 1024 * 1024; // 5MB limit
+
+        const validFiles = files.filter(file => {
+            if (file.size > maxSize) {
+                toast.error(`${file.name} is too large (max 5MB)`);
+                return false;
+            }
+            return true;
+        });
+
+        const newAttachments = validFiles.map(file => {
+            const isImage = file.type.startsWith('image/');
+            return {
+                id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                file,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                isImage,
+                preview: isImage ? URL.createObjectURL(file) : null
+            };
+        });
+
+        setAttachments(prev => [...prev, ...newAttachments].slice(0, 5)); // Max 5 attachments
+        setShowAttachMenu(false);
+    };
+
+    const removeAttachment = (id) => {
+        setAttachments(prev => {
+            const removed = prev.find(a => a.id === id);
+            if (removed?.preview) URL.revokeObjectURL(removed.preview);
+            return prev.filter(a => a.id !== id);
+        });
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    const renderAttachment = (att, isOwn = false) => {
+        if (att.isImage || att.type?.startsWith('image/')) {
+            return (
+                <div className="mt-2 rounded-lg overflow-hidden max-w-[200px]">
+                    <img
+                        src={att.preview || att.url}
+                        alt={att.name}
+                        className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(att.preview || att.url, '_blank')}
+                    />
+                </div>
+            );
+        }
+
+        return (
+            <div className={`mt-2 flex items-center gap-2 p-2 rounded-lg ${isOwn ? 'bg-primary-foreground/10' : 'bg-muted'}`}>
+                <HiDocument className="w-5 h-5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{att.name}</p>
+                    <p className="text-[10px] opacity-70">{formatFileSize(att.size)}</p>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -29,6 +129,17 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
             </CardHeader>
 
             <CardContent className="flex-1 p-3 overflow-y-auto space-y-3">
+                {/* Guest Warning */}
+                {isGuest && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs">
+                        <HiLockClosed className="w-4 h-4 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-medium">View Only Mode</p>
+                            <p className="opacity-80">Sign up to send messages and attachments.</p>
+                        </div>
+                    </div>
+                )}
+
                 {messages.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">
                         No messages yet. Start the conversation!
@@ -43,10 +154,18 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
                                         <p className="text-xs text-muted-foreground mb-1 ml-1">{msg.username}</p>
                                     )}
                                     <div className={`px-4 py-2.5 rounded-2xl ${isOwn
-                                            ? 'bg-primary text-primary-foreground rounded-br-md'
-                                            : 'bg-muted rounded-bl-md'
+                                        ? 'bg-primary text-primary-foreground rounded-br-md'
+                                        : 'bg-muted rounded-bl-md'
                                         }`}>
-                                        <p className="text-sm leading-relaxed">{msg.message}</p>
+                                        {msg.message && (
+                                            <p className="text-sm leading-relaxed">{msg.message}</p>
+                                        )}
+                                        {/* Render attachments */}
+                                        {msg.attachments?.map((att, i) => (
+                                            <div key={i}>
+                                                {renderAttachment(att, isOwn)}
+                                            </div>
+                                        ))}
                                     </div>
                                     <p className={`text-[10px] text-muted-foreground mt-1 ${isOwn ? 'text-right mr-1' : 'ml-1'}`}>
                                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -59,17 +178,112 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
                 <div ref={messagesEndRef} />
             </CardContent>
 
-            <form onSubmit={handleSubmit} className="p-3 border-t shrink-0 flex gap-2">
-                <Input
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1"
-                    maxLength={500}
-                />
-                <Button type="submit" size="icon" disabled={!message.trim()}>
-                    <HiPaperAirplane className="w-4 h-4" />
-                </Button>
+            {/* Attachment Preview */}
+            {attachments.length > 0 && (
+                <div className="px-3 py-2 border-t bg-muted/30">
+                    <div className="flex flex-wrap gap-2">
+                        {attachments.map(att => (
+                            <div
+                                key={att.id}
+                                className="relative group"
+                            >
+                                {att.isImage ? (
+                                    <div className="w-16 h-16 rounded-lg overflow-hidden border">
+                                        <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="w-16 h-16 rounded-lg border flex flex-col items-center justify-center bg-muted p-1">
+                                        <HiDocument className="w-5 h-5 text-muted-foreground" />
+                                        <p className="text-[8px] text-center truncate w-full mt-1">{att.name}</p>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => removeAttachment(att.id)}
+                                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <HiXMark className="w-3 h-3" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Input Area */}
+            <form onSubmit={handleSubmit} className="p-3 border-t shrink-0">
+                <div className="flex gap-2 items-end">
+                    {/* Attachment Button */}
+                    <div className="relative">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => {
+                                if (!permissions.canSendAttachments) {
+                                    toast.error('Please sign up to send attachments');
+                                    return;
+                                }
+                                setShowAttachMenu(!showAttachMenu);
+                            }}
+                            disabled={!permissions.canChat}
+                        >
+                            <HiPaperClip className="w-5 h-5" />
+                        </Button>
+
+                        {/* Attachment Menu */}
+                        {showAttachMenu && (
+                            <div className="absolute bottom-12 left-0 w-40 p-2 rounded-xl bg-popover border shadow-lg animate-in slide-in-from-bottom-2">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                    multiple
+                                    accept="image/*,.pdf,.doc,.docx,.txt"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        fileInputRef.current.accept = 'image/*';
+                                        fileInputRef.current.click();
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted text-sm transition-colors"
+                                >
+                                    <HiPhoto className="w-4 h-4 text-primary" />
+                                    Photo
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        fileInputRef.current.accept = '.pdf,.doc,.docx,.txt';
+                                        fileInputRef.current.click();
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted text-sm transition-colors"
+                                >
+                                    <HiDocument className="w-4 h-4 text-amber-500" />
+                                    Document
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <Input
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder={permissions.canChat ? "Type a message..." : "Sign up to chat"}
+                        className="flex-1"
+                        maxLength={500}
+                        disabled={!permissions.canChat}
+                    />
+                    <Button
+                        type="submit"
+                        size="icon"
+                        disabled={(!message.trim() && attachments.length === 0) || !permissions.canChat}
+                    >
+                        <HiPaperAirplane className="w-4 h-4" />
+                    </Button>
+                </div>
             </form>
         </Card>
     );

@@ -1,5 +1,6 @@
 /**
  * Socket Event Handlers
+ * Supports user tiers, private rooms, and attachments
  */
 
 const roomManager = require("../utils/roomManager");
@@ -40,15 +41,21 @@ function setupSocketHandlers(io, socket) {
 
 /**
  * Handle room creation
+ * Now supports private rooms and creator tier
  */
-function handleRoomCreate(io, socket, { roomName, username }, callback) {
-    const { roomId, room } = roomManager.createRoom(roomName || `${username}'s Room`);
+function handleRoomCreate(io, socket, { roomName, username, isPrivate, password, creatorTier }, callback) {
+    const { roomId, room } = roomManager.createRoom(
+        roomName || `${username}'s Room`,
+        isPrivate || false,
+        password,
+        creatorTier || 'free'
+    );
 
-    // Add creator to room
-    const userData = roomManager.addUserToRoom(roomId, socket.id, username);
+    // Add creator to room with their tier
+    const userData = roomManager.addUserToRoom(roomId, socket.id, username, creatorTier || 'free');
     socket.join(roomId);
 
-    console.log(`Room created: ${roomId} by ${userData.username}`);
+    console.log(`Room created: ${roomId} by ${userData.username} (${creatorTier}${isPrivate ? ', private' : ''})`);
 
     // Notify all clients about new room
     io.emit("rooms:list", roomManager.getAllRooms());
@@ -62,8 +69,9 @@ function handleRoomCreate(io, socket, { roomName, username }, callback) {
 
 /**
  * Handle room joining
+ * Now supports user tiers and private room password verification
  */
-function handleRoomJoin(io, socket, { roomId, username }, callback) {
+function handleRoomJoin(io, socket, { roomId, username, userTier, password }, callback) {
     const room = roomManager.getRoom(roomId);
 
     if (!room) {
@@ -71,20 +79,37 @@ function handleRoomJoin(io, socket, { roomId, username }, callback) {
         return;
     }
 
+    // Check if room is private and verify password
+    if (room.isPrivate) {
+        if (userTier !== 'premium') {
+            callback({ success: false, error: "This is a private room. Premium membership required." });
+            return;
+        }
+        if (room.password && password !== room.password) {
+            callback({ success: false, error: "Incorrect room password" });
+            return;
+        }
+    }
+
     // Get existing users before joining
     const existingUsers = Array.from(room.participants.entries())
-        .map(([id, user]) => ({ socketId: id, username: user.username }));
+        .map(([id, user]) => ({
+            socketId: id,
+            username: user.username,
+            userTier: user.userTier
+        }));
 
-    // Add user to room
-    const userData = roomManager.addUserToRoom(roomId, socket.id, username);
+    // Add user to room with their tier
+    const userData = roomManager.addUserToRoom(roomId, socket.id, username, userTier || 'guest');
     socket.join(roomId);
 
-    console.log(`${userData.username} joined room: ${roomId}`);
+    console.log(`${userData.username} (${userTier || 'guest'}) joined room: ${roomId}`);
 
     // Notify others in room about new user
     socket.to(roomId).emit("user:joined", {
         socketId: socket.id,
-        username: userData.username
+        username: userData.username,
+        userTier: userData.userTier
     });
 
     // Update rooms list for all
@@ -146,10 +171,19 @@ function handleICECandidate(socket, { to, candidate }) {
 
 /**
  * Handle media toggle
+ * Guests cannot toggle media
  */
 function handleMediaToggle(socket, { type, enabled }) {
-    const user = roomManager.updateUserMedia(socket.id, type, enabled);
+    const user = roomManager.getUser(socket.id);
     if (!user) return;
+
+    // Prevent guests from enabling audio/video
+    if (user.userTier === 'guest' && (type === 'audio' || type === 'video') && enabled) {
+        return; // Silently ignore
+    }
+
+    const updatedUser = roomManager.updateUserMedia(socket.id, type, enabled);
+    if (!updatedUser) return;
 
     socket.to(user.roomId).emit("user:media-toggle", {
         socketId: socket.id,
@@ -160,16 +194,24 @@ function handleMediaToggle(socket, { type, enabled }) {
 
 /**
  * Handle chat message
+ * Guests cannot send messages
  */
-function handleChatMessage(io, socket, { message }) {
+function handleChatMessage(io, socket, { message, attachments }) {
     const user = roomManager.getUser(socket.id);
     if (!user) return;
+
+    // Prevent guests from sending messages
+    if (user.userTier === 'guest') {
+        socket.emit("chat:error", { error: "Guests cannot send messages" });
+        return;
+    }
 
     const chatMessage = {
         id: `msg_${Date.now()}`,
         socketId: socket.id,
         username: user.username,
         message,
+        attachments: attachments || [],
         timestamp: new Date().toISOString()
     };
 
@@ -179,10 +221,16 @@ function handleChatMessage(io, socket, { message }) {
 
 /**
  * Handle user ping
+ * Guests cannot ping
  */
 function handleUserPing(socket, { targetSocketId }) {
     const user = roomManager.getUser(socket.id);
     if (!user) return;
+
+    // Prevent guests from pinging
+    if (user.userTier === 'guest') {
+        return;
+    }
 
     socket.to(targetSocketId).emit("user:pinged", {
         from: socket.id,

@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { HiMicrophone, HiVideoCamera, HiBellAlert, HiComputerDesktop } from 'react-icons/hi2';
+import { HiMicrophone, HiVideoCamera, HiBellAlert, HiComputerDesktop, HiEye, HiStar } from 'react-icons/hi2';
 import { Button } from '@/components/ui/button';
 
 export default function VideoPlayer({
@@ -11,7 +11,9 @@ export default function VideoPlayer({
     isVideoOn = true,
     isScreenSharing = false,
     isPinged = false,
-    onPing
+    onPing,
+    isGuest = false,
+    userTier
 }) {
     const internalVideoRef = useRef(null);
     const actualRef = videoRef || internalVideoRef;
@@ -30,6 +32,8 @@ export default function VideoPlayer({
     const shouldShowVideo = (isVideoOn || isScreenSharing) && hasVideoTrack && videoTrackEnabled;
 
     const initials = username.slice(0, 2).toUpperCase();
+    const isRemoteGuest = !isLocal && userTier === 'guest';
+    const isRemotePremium = !isLocal && userTier === 'premium';
 
     return (
         <div
@@ -48,20 +52,33 @@ export default function VideoPlayer({
 
             {!shouldShowVideo && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-2xl">
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-2xl ${isGuest || isRemoteGuest ? 'bg-gradient-to-br from-slate-500 to-slate-600' : isRemotePremium ? 'bg-gradient-to-br from-amber-500 to-orange-500' : 'bg-gradient-to-br from-indigo-500 to-purple-600'}`}>
                         {initials}
                     </div>
                 </div>
             )}
 
+            {/* Local user badge */}
             {isLocal && (
-                <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 ${isScreenSharing ? 'bg-amber-500 text-white' : 'bg-primary text-primary-foreground'}`}>
+                <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 ${isScreenSharing ? 'bg-amber-500 text-white' : isGuest ? 'bg-slate-600 text-white' : 'bg-primary text-primary-foreground'}`}>
                     {isScreenSharing && <HiComputerDesktop className="w-3 h-3" />}
-                    {isScreenSharing ? 'Screen' : 'You'}
+                    {isGuest && !isScreenSharing && <HiEye className="w-3 h-3" />}
+                    {isScreenSharing ? 'Screen' : isGuest ? 'Viewing' : 'You'}
                 </div>
             )}
 
-            {!isLocal && onPing && (
+            {/* Remote user tier badge */}
+            {!isLocal && (isRemoteGuest || isRemotePremium) && (
+                <div className={`absolute top-3 left-3 px-2 py-1 rounded-full text-[10px] font-semibold shadow-lg flex items-center gap-1 ${isRemotePremium ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' : 'bg-slate-600 text-white'}`}>
+                    {isRemotePremium ? (
+                        <><HiStar className="w-3 h-3" /> Premium</>
+                    ) : (
+                        <><HiEye className="w-3 h-3" /> Guest</>
+                    )}
+                </div>
+            )}
+
+            {!isLocal && onPing && !isRemoteGuest && (
                 <div className={`absolute top-3 right-3 transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
                     <Button size="icon" variant="secondary" onClick={onPing} className="w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-primary hover:text-primary-foreground">
                         <HiBellAlert className="w-4 h-4" />
@@ -73,12 +90,20 @@ export default function VideoPlayer({
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-white truncate max-w-[150px]">{username}</span>
                     <div className="flex items-center gap-1.5">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isAudioOn ? 'bg-white/20' : 'bg-red-500'}`}>
-                            <HiMicrophone className="w-3.5 h-3.5 text-white" />
-                        </div>
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isVideoOn ? 'bg-white/20' : 'bg-red-500'}`}>
-                            <HiVideoCamera className="w-3.5 h-3.5 text-white" />
-                        </div>
+                        {(isGuest || isRemoteGuest) ? (
+                            <div className="px-2 py-1 rounded-full bg-white/20 text-[10px] text-white font-medium flex items-center gap-1">
+                                <HiEye className="w-3 h-3" /> View Only
+                            </div>
+                        ) : (
+                            <>
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isAudioOn ? 'bg-white/20' : 'bg-red-500'}`}>
+                                    <HiMicrophone className="w-3.5 h-3.5 text-white" />
+                                </div>
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isVideoOn ? 'bg-white/20' : 'bg-red-500'}`}>
+                                    <HiVideoCamera className="w-3.5 h-3.5 text-white" />
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
