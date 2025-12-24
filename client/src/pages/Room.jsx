@@ -21,7 +21,8 @@ import {
     HiArrowPath,
     HiLockClosed,
     HiStar,
-    HiEye
+    HiEye,
+    HiMusicalNote
 } from 'react-icons/hi2';
 import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -32,6 +33,7 @@ import VideoGrid from '@/components/VideoGrid';
 import ChatPanel from '@/components/ChatPanel';
 import UserList from '@/components/UserList';
 import PingOverlay from '@/components/PingOverlay';
+import AmbientPlayer from '@/components/AmbientPlayer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -52,6 +54,7 @@ export default function Room() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isUserListOpen, setIsUserListOpen] = useState(false);
     const [isTodoOpen, setIsTodoOpen] = useState(false);
+    const [isAmbientOpen, setIsAmbientOpen] = useState(false);
     const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
     const [pingTarget, setPingTarget] = useState(null);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -357,6 +360,11 @@ export default function Room() {
                         <HiClock className="w-4 h-4" />
                         <span className="hidden sm:inline">Timer</span>
                     </Button>
+
+                    <Button variant={isAmbientOpen ? 'default' : 'outline'} size="sm" onClick={() => setIsAmbientOpen(!isAmbientOpen)} className="gap-2">
+                        <HiMusicalNote className="w-4 h-4" />
+                        <span className="hidden sm:inline">Sounds</span>
+                    </Button>
                 </div>
             </header>
 
@@ -525,6 +533,8 @@ export default function Room() {
             </footer>
 
             {pingTarget?.socketId === 'local' && <PingOverlay username={pingTarget.username} />}
+
+            <AmbientPlayer isOpen={isAmbientOpen} onClose={() => setIsAmbientOpen(false)} />
         </div>
     );
 }
