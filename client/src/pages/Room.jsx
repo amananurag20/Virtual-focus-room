@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getTodos, createTodo, toggleTodo, deleteTodo as deleteTodoService } from '@/services/todoService';
 import { recordSession } from '@/services/sessionService';
+import { saveMessage } from '@/services/messageService';
 
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -140,7 +141,7 @@ export default function Room() {
 
                     // Record session start
                     if (isLoggedIn) {
-                        const sessionRes = await recordSession(roomId, 'start');
+                        const sessionRes = await recordSession(roomId, 'start', null, response.room.name || 'Focus Room');
                         if (sessionRes.success) setCurrentSessionId(sessionRes.sessionId);
                     }
                 } else { toast.error(response.error || 'Failed to join room'); navigate('/'); }
@@ -217,13 +218,28 @@ export default function Room() {
 
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
 
-    const handleSendMessage = useCallback((message, attachments = []) => {
+    const handleSendMessage = useCallback(async (message, attachments = []) => {
         if (!permissions.canChat) {
             showRestrictionToast('Chat');
             return;
         }
+
+        // Persist message if logged in and in a session
+        if (isLoggedIn && currentSessionId) {
+            // Note: Currently we only save text messages here. Media attachments would need separate upload logic
+            // or we could integrate uploadToCloudinary here if needed.
+            // For now, saving text content.
+            if (message && message.trim()) {
+                saveMessage({
+                    roomId,
+                    sessionId: currentSessionId,
+                    content: message
+                });
+            }
+        }
+
         socket?.emit('chat:message', { message, attachments });
-    }, [socket, permissions]);
+    }, [socket, permissions, isLoggedIn, currentSessionId, roomId]);
 
     const handlePingUser = useCallback((targetSocketId) => {
         if (!permissions.canPingUsers) {

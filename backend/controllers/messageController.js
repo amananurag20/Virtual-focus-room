@@ -10,10 +10,11 @@ const upload = multer({ dest: 'uploads/' });
 exports.getMessages = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { roomId, limit = 50 } = req.query;
+        const { roomId, sessionId, limit = 50 } = req.query;
 
         const query = { userId };
         if (roomId) query.roomId = roomId;
+        if (sessionId) query.sessionId = sessionId;
 
         const messages = await Message.find(query)
             .sort({ createdAt: -1 })

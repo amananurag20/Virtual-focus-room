@@ -11,8 +11,7 @@ import ChatHistory from '@/components/dashboard/ChatHistory';
 export default function Dashboard() {
     const navigate = useNavigate();
     const { user, isLoggedIn } = useAuth();
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [selectedSessionId, setSelectedSessionId] = useState(null);
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -75,8 +74,15 @@ export default function Dashboard() {
 
                 {/* Meeting & Chat History */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <MeetingHistory sessions={data?.recentSessions} />
-                    <ChatHistory messages={data?.recentMessages} />
+                    <MeetingHistory
+                        sessions={data?.recentSessions}
+                        selectedSessionId={selectedSessionId}
+                        onSelectSession={setSelectedSessionId}
+                    />
+                    <ChatHistory
+                        initialMessages={data?.recentMessages}
+                        sessionId={selectedSessionId}
+                    />
                 </div>
             </main>
         </div>

@@ -1,7 +1,29 @@
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { HiChatBubbleLeftRight, HiPhoto } from 'react-icons/hi2';
+import { getMessages } from '@/services/messageService';
 
-export default function ChatHistory({ messages }) {
+export default function ChatHistory({ initialMessages, sessionId }) {
+    const [messages, setMessages] = useState(initialMessages || []);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (sessionId) {
+            fetchSessionMessages();
+        } else {
+            setMessages(initialMessages || []);
+        }
+    }, [sessionId, initialMessages]);
+
+    const fetchSessionMessages = async () => {
+        setLoading(true);
+        const res = await getMessages(null, 100, sessionId);
+        if (res.success) {
+            setMessages(res.messages);
+        }
+        setLoading(false);
+    };
+
     const formatDate = (dateStr) => {
         const date = new Date(dateStr);
         const now = new Date();
@@ -16,16 +38,20 @@ export default function ChatHistory({ messages }) {
     };
 
     return (
-        <Card>
+        <Card className="h-[500px] flex flex-col">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <HiChatBubbleLeftRight className="w-5 h-5 text-green-500" />
-                    Chat History
+                    {sessionId ? 'Session Chat' : 'Recent Chat History'}
                 </CardTitle>
             </CardHeader>
-            <CardContent>
-                {messages && messages.length > 0 ? (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+            <CardContent className="flex-1 overflow-y-auto pr-2">
+                {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                ) : messages && messages.length > 0 ? (
+                    <div className="space-y-3">
                         {messages.map((msg, idx) => (
                             <div
                                 key={msg._id || idx}
@@ -37,7 +63,7 @@ export default function ChatHistory({ messages }) {
                                             <p className="font-medium text-sm">{msg.userId?.name || 'You'}</p>
                                             <span className="text-xs text-muted-foreground">{formatDate(msg.createdAt)}</span>
                                         </div>
-                                        <p className="text-sm">{msg.content}</p>
+                                        <p className="text-sm break-words">{msg.content}</p>
                                         {msg.mediaUrl && (
                                             <div className="mt-2">
                                                 {msg.mediaType === 'image' ? (
@@ -65,7 +91,10 @@ export default function ChatHistory({ messages }) {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-center text-muted-foreground py-8">No messages yet</p>
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                        <HiChatBubbleLeftRight className="w-12 h-12 mb-2 opacity-20" />
+                        <p>{sessionId ? 'No messages in this session' : 'Select a meeting to view chat'}</p>
+                    </div>
                 )}
             </CardContent>
         </Card>

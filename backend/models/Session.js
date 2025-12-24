@@ -26,15 +26,19 @@ const sessionSchema = new mongoose.Schema({
     duration: {
         type: Number, // in seconds
         default: 0
+    },
+    isPrivate: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 
 // Auto-calculate duration when leftAt is set
-sessionSchema.pre('save', function (next) {
+// Auto-calculate duration when leftAt is set
+sessionSchema.pre('save', async function () {
     if (this.leftAt && this.joinedAt) {
         this.duration = Math.floor((this.leftAt - this.joinedAt) / 1000);
     }
-    next();
 });
 
 module.exports = mongoose.model('Session', sessionSchema);

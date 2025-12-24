@@ -1,7 +1,18 @@
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { HiClock, HiCalendar } from 'react-icons/hi2';
+import { Button } from '@/components/ui/button';
+import { HiClock, HiCalendar, HiLockClosed, HiGlobeAlt } from 'react-icons/hi2';
+import { toggleSessionPrivacy } from '@/services/sessionService';
+import toast from 'react-hot-toast';
 
-export default function MeetingHistory({ sessions }) {
+export default function MeetingHistory({ sessions, selectedSessionId, onSelectSession }) {
+    const [localSessions, setLocalSessions] = useState(sessions || []);
+
+    // Update local sessions when prop changes
+    if (sessions && sessions !== localSessions && localSessions.length === 0) {
+        setLocalSessions(sessions);
+    }
+
     const formatTime = (seconds) => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
@@ -19,32 +30,59 @@ export default function MeetingHistory({ sessions }) {
         });
     };
 
+    const handleTogglePrivacy = async (e, sessionId) => {
+        e.stopPropagation();
+        const res = await toggleSessionPrivacy(sessionId);
+        if (res.success) {
+            setLocalSessions(prev => prev.map(s =>
+                s._id === sessionId ? { ...s, isPrivate: res.isPrivate } : s
+            ));
+            toast.success(res.isPrivate ? 'Session marked private' : 'Session marked public');
+        } else {
+            toast.error('Failed to update privacy');
+        }
+    };
+
     return (
-        <Card>
+        <Card className="h-[500px] flex flex-col">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <HiCalendar className="w-5 h-5 text-indigo-500" />
                     Meeting History
                 </CardTitle>
             </CardHeader>
-            <CardContent>
-                {sessions && sessions.length > 0 ? (
+            <CardContent className="flex-1 overflow-y-auto pr-2">
+                {localSessions && localSessions.length > 0 ? (
                     <div className="space-y-3">
-                        {sessions.map((session, idx) => (
+                        {localSessions.map((session, idx) => (
                             <div
                                 key={session._id || idx}
-                                className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                                onClick={() => onSelectSession(session._id)}
+                                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${selectedSessionId === session._id
+                                        ? 'bg-primary/5 border-primary ring-1 ring-primary'
+                                        : 'hover:bg-muted/50'
+                                    }`}
                             >
-                                <div className="flex-1">
-                                    <p className="font-medium">{session.roomName || 'Focus Room'}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {formatDate(session.joinedAt)}
-                                    </p>
+                                <div className="flex-1 min-w-0 mr-4">
+                                    <p className="font-medium truncate">{session.roomName || 'Focus Room'}</p>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <span>{formatDate(session.joinedAt)}</span>
+                                        <span>•</span>
+                                        <div className="flex items-center gap-1">
+                                            <HiClock className="w-3 h-3" />
+                                            <span>{formatTime(session.duration || 0)}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                    <HiClock className="w-4 h-4 text-muted-foreground" />
-                                    <span className="font-medium">{formatTime(session.duration || 0)}</span>
-                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={`shrink-0 h-8 w-8 rounded-full ${session.isPrivate ? 'text-amber-500' : 'text-slate-400'}`}
+                                    onClick={(e) => handleTogglePrivacy(e, session._id)}
+                                    title={session.isPrivate ? "Private Meeting" : "Public Meeting"}
+                                >
+                                    {session.isPrivate ? <HiLockClosed className="w-4 h-4" /> : <HiGlobeAlt className="w-4 h-4" />}
+                                </Button>
                             </div>
                         ))}
                     </div>
