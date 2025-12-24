@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { getTodos, createTodo, toggleTodo, deleteTodo as deleteTodoService } from '@/services/todoService';
+
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -211,12 +213,46 @@ export default function Room() {
         toast.success(`Pinged!`);
     }, [socket, permissions]);
 
+    useEffect(() => {
+        if (isTodoOpen) {
+            fetchTodos();
+        }
+    }, [isTodoOpen]);
+
+    const fetchTodos = async () => {
+        try {
+            const today = new Date().toISOString();
+            const res = await getTodos(today);
+            if (res.success) setTodos(res.todos);
+        } catch (error) { console.error(error); }
+    };
+
     const toggleChat = () => { setIsChatOpen(prev => !prev); if (!isChatOpen) setUnreadCount(0); setIsUserListOpen(false); setIsTodoOpen(false); };
     const toggleUserList = () => { setIsUserListOpen(prev => !prev); setIsChatOpen(false); setIsTodoOpen(false); };
-    const toggleTodo = () => { setIsTodoOpen(prev => !prev); setIsChatOpen(false); setIsUserListOpen(false); };
-    const addTodo = (e) => { e.preventDefault(); if (!newTodo.trim()) return; setTodos(prev => [...prev, { id: Date.now(), text: newTodo.trim(), done: false }]); setNewTodo(''); };
-    const toggleTodoDone = (id) => { setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t)); };
-    const deleteTodo = (id) => { setTodos(prev => prev.filter(t => t.id !== id)); };
+    const toggleTasksPanel = () => { setIsTodoOpen(prev => !prev); setIsChatOpen(false); setIsUserListOpen(false); };
+
+    const addTodo = async (e) => {
+        e.preventDefault();
+        if (!newTodo.trim()) return;
+        try {
+            const res = await createTodo(newTodo.trim(), new Date());
+            if (res.success) { setTodos(prev => [...prev, res.todo]); setNewTodo(''); }
+        } catch (err) { toast.error('Failed to add task'); }
+    };
+
+    const toggleTodoDone = async (id) => {
+        try {
+            const res = await toggleTodo(id);
+            if (res.success) setTodos(prev => prev.map(t => t._id === id ? { ...t, isCompleted: !t.isCompleted } : t));
+        } catch (err) { toast.error('Failed to update task'); }
+    };
+
+    const deleteTodo = async (id) => {
+        try {
+            const res = await deleteTodoService(id);
+            if (res.success) setTodos(prev => prev.filter(t => t._id !== id));
+        } catch (err) { toast.error('Failed to delete task'); }
+    };
 
     const participantCount = Object.keys(participants).length + 1;
 
@@ -311,10 +347,10 @@ export default function Room() {
                         </div>
                     )}
 
-                    <Button variant={isTodoOpen ? 'default' : 'outline'} size="sm" onClick={toggleTodo} className="gap-2">
+                    <Button variant={isTodoOpen ? 'default' : 'outline'} size="sm" onClick={toggleTasksPanel} className="gap-2">
                         <HiClipboardDocumentList className="w-4 h-4" />
                         <span className="hidden sm:inline">Tasks</span>
-                        {todos.filter(t => !t.done).length > 0 && <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-bold">{todos.filter(t => !t.done).length}</span>}
+                        {todos.filter(t => !t.isCompleted).length > 0 && <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-bold">{todos.filter(t => !t.isCompleted).length}</span>}
                     </Button>
 
                     <Button variant="outline" size="sm" onClick={() => setIsTimerModalOpen(true)} className="gap-2">
@@ -399,10 +435,10 @@ export default function Room() {
                             </form>
                             <div className="space-y-2">
                                 {todos.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">No tasks yet.</p> : todos.map(todo => (
-                                    <div key={todo.id} className={`flex items-center gap-3 p-3 rounded-lg border ${todo.done ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
-                                        <button onClick={() => toggleTodoDone(todo.id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${todo.done ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>{todo.done && <HiCheck className="w-3 h-3" />}</button>
-                                        <span className={`flex-1 text-sm ${todo.done ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
-                                        <button onClick={() => deleteTodo(todo.id)} className="text-muted-foreground hover:text-destructive"><HiXMark className="w-4 h-4" /></button>
+                                    <div key={todo._id} className={`flex items-center gap-3 p-3 rounded-lg border ${todo.isCompleted ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
+                                        <button onClick={() => toggleTodoDone(todo._id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${todo.isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>{todo.isCompleted && <HiCheck className="w-3 h-3" />}</button>
+                                        <span className={`flex-1 text-sm ${todo.isCompleted ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
+                                        <button onClick={() => deleteTodo(todo._id)} className="text-muted-foreground hover:text-destructive"><HiXMark className="w-4 h-4" /></button>
                                     </div>
                                 ))}
                             </div>

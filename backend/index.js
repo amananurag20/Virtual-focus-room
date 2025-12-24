@@ -14,6 +14,7 @@ const roomManager = require('./utils/roomManager');
 const { setupSocketHandlers } = require('./handlers/socketHandlers');
 const authRoutes = require('./routes/authRoutes');
 const tierRoutes = require('./routes/tierRoutes');
+const todoRoutes = require('./routes/todoRoutes');
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ mongoose.connect(MONGO_URI)
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tiers', tierRoutes);
+app.use('/api/todos', todoRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
