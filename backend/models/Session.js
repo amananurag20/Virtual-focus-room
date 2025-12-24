@@ -11,6 +11,10 @@ const sessionSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    roomName: {
+        type: String,
+        default: 'Focus Room'
+    },
     joinedAt: {
         type: Date,
         required: true,

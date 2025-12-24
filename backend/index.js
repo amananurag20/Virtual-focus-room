@@ -16,6 +16,7 @@ const authRoutes = require('./routes/authRoutes');
 const tierRoutes = require('./routes/tierRoutes');
 const todoRoutes = require('./routes/todoRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const messageRoutes = require('./routes/messageRoutes');
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tiers', tierRoutes);
 app.use('/api/todos', todoRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

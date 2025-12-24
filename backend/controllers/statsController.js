@@ -1,5 +1,6 @@
 const Session = require('../models/Session');
 const Todo = require('../models/Todo');
+const Message = require('../models/Message');
 
 // Get user statistics
 exports.getStats = async (req, res) => {
@@ -118,13 +119,14 @@ exports.getStats = async (req, res) => {
 // Record session event
 exports.recordSession = async (req, res) => {
     try {
-        const { roomId, event, sessionId } = req.body;
+        const { roomId, roomName, event, sessionId } = req.body;
         const userId = req.user._id;
 
         if (event === 'start') {
             const session = new Session({
                 userId,
                 roomId,
+                roomName: roomName || 'Focus Room',
                 joinedAt: new Date()
             });
             await session.save();
@@ -141,6 +143,51 @@ exports.recordSession = async (req, res) => {
         res.status(400).json({ success: false, message: 'Invalid session event' });
     } catch (error) {
         console.error('Error recording session:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// Get comprehensive dashboard data
+exports.getDashboardData = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const now = new Date();
+        const startOfWeek = new Date();
+        startOfWeek.setDate(now.getDate() - 7);
+
+        // Get recent sessions with room names
+        const recentSessions = await Session.find({ userId })
+            .sort({ joinedAt: -1 })
+            .limit(10)
+            .select('roomId roomName joinedAt leftAt duration');
+
+        // Get recent messages with media
+        const recentMessages = await Message.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .populate('userId', 'name');
+
+        // Get stats - create a mock res object to capture the data
+        let statsData = {};
+        const mockRes = {
+            json: (data) => {
+                statsData = data.stats || {};
+                return data;
+            }
+        };
+
+        await exports.getStats(req, mockRes);
+
+        res.json({
+            success: true,
+            data: {
+                stats: statsData,
+                recentSessions,
+                recentMessages
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

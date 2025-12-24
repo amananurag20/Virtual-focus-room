@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import Home from './pages/Home';
 import Room from './pages/Room';
+import Dashboard from './pages/Dashboard';
 import './index.css';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/room/:roomId" element={<Room />} />
             </Routes>
           </BrowserRouter>
