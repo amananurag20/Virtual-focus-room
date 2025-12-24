@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
+const API_URL = 'http://localhost:3000/api/auth';
+
 // User tiers
 export const USER_TIERS = {
     GUEST: 'guest',
@@ -54,29 +56,39 @@ export const TIER_PERMISSIONS = {
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [token, setToken] = useState(localStorage.getItem('focusroom_token'));
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load user from localStorage on mount
+    // Load user profile if token exists
     useEffect(() => {
-        const savedUser = localStorage.getItem('focusroom_user');
-        if (savedUser) {
-            try {
-                setUser(JSON.parse(savedUser));
-            } catch (e) {
-                localStorage.removeItem('focusroom_user');
-            }
-        }
-        setIsLoading(false);
-    }, []);
+        const loadUser = async () => {
+            if (token) {
+                try {
+                    const res = await fetch(`${API_URL}/profile`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    const data = await res.json();
 
-    // Save user to localStorage when it changes
-    useEffect(() => {
-        if (user) {
-            localStorage.setItem('focusroom_user', JSON.stringify(user));
-        } else {
-            localStorage.removeItem('focusroom_user');
-        }
-    }, [user]);
+                    if (data.success) {
+                        setUser(data.user);
+                    } else {
+                        // Token invalid/expired
+                        localStorage.removeItem('focusroom_token');
+                        setToken(null);
+                        setUser(null);
+                    }
+                } catch (error) {
+                    console.error("Auth Error:", error);
+                    // Don't modify state on connection error, maybe minor outage
+                }
+            }
+            setIsLoading(false);
+        };
+
+        loadUser();
+    }, [token]);
 
     // Get current tier
     const tier = user?.tier || USER_TIERS.GUEST;
@@ -84,73 +96,93 @@ export function AuthProvider({ children }) {
 
     // Login function
     const login = async (email, password) => {
-        // Simulated login - in real app, call API
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const userData = {
-                    id: `user_${Date.now()}`,
-                    email,
-                    name: email.split('@')[0],
-                    tier: USER_TIERS.FREE,
-                    createdAt: new Date().toISOString()
-                };
-                setUser(userData);
-                toast.success(`Welcome back, ${userData.name}!`);
-                resolve({ success: true, user: userData });
-            }, 800);
-        });
+        try {
+            const res = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                localStorage.setItem('focusroom_token', data.token);
+                setToken(data.token);
+                setUser(data.user);
+                toast.success(`Welcome back, ${data.user.name}!`);
+                return { success: true, user: data.user };
+            } else {
+                toast.error(data.message || 'Login failed');
+                return { success: false, error: data.message };
+            }
+        } catch (error) {
+            toast.error('Connection error. Is backend running?');
+            return { success: false, error: 'Connection error' };
+        }
     };
 
     // Signup function
     const signup = async (email, password, name) => {
-        // Simulated signup - in real app, call API
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const userData = {
-                    id: `user_${Date.now()}`,
-                    email,
-                    name: name || email.split('@')[0],
-                    tier: USER_TIERS.FREE,
-                    createdAt: new Date().toISOString()
-                };
-                setUser(userData);
-                toast.success(`Account created! Welcome, ${userData.name}!`);
-                resolve({ success: true, user: userData });
-            }, 800);
-        });
+        try {
+            const res = await fetch(`${API_URL}/signup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                localStorage.setItem('focusroom_token', data.token);
+                setToken(data.token);
+                setUser(data.user);
+                toast.success(`Account created! Welcome, ${data.user.name}!`);
+                return { success: true, user: data.user };
+            } else {
+                toast.error(data.message || 'Signup failed');
+                return { success: false, error: data.message };
+            }
+        } catch (error) {
+            toast.error('Connection error');
+            return { success: false, error: 'Connection error' };
+        }
     };
 
     // Logout function
     const logout = () => {
         setUser(null);
-        localStorage.removeItem('focusroom_username');
+        setToken(null);
+        localStorage.removeItem('focusroom_token');
+        localStorage.removeItem('focusroom_username'); // Clear legacy item if present
         toast.success('Logged out successfully');
     };
 
-    // Upgrade to premium (fake payment for now)
+    // Upgrade to premium
     const upgradeToPremium = async () => {
-        return new Promise((resolve) => {
-            // Simulate payment processing
-            setTimeout(() => {
-                if (user) {
-                    const updatedUser = { ...user, tier: USER_TIERS.PREMIUM };
-                    setUser(updatedUser);
-                    toast.success('🎉 Upgraded to Premium! Enjoy exclusive features.');
-                    resolve({ success: true });
-                } else {
-                    toast.error('Please login first');
-                    resolve({ success: false, error: 'Not logged in' });
-                }
-            }, 1500);
-        });
-    };
+        if (!token) {
+            toast.error('Please login first');
+            return { success: false };
+        }
 
-    // Cancel premium
-    const cancelPremium = () => {
-        if (user && user.tier === USER_TIERS.PREMIUM) {
-            const updatedUser = { ...user, tier: USER_TIERS.FREE };
-            setUser(updatedUser);
-            toast.success('Premium cancelled');
+        try {
+            const res = await fetch(`${API_URL}/upgrade`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setUser(data.user);
+                toast.success('🎉 Upgraded to Premium! Enjoy exclusive features.');
+                return { success: true };
+            } else {
+                toast.error(data.message || 'Upgrade failed');
+                return { success: false, error: data.message };
+            }
+        } catch (error) {
+            toast.error('Connection error');
+            return { success: false };
         }
     };
 
@@ -162,6 +194,7 @@ export function AuthProvider({ children }) {
     const value = {
         user,
         tier,
+        token,
         permissions,
         isLoading,
         isGuest: !user,
@@ -172,7 +205,6 @@ export function AuthProvider({ children }) {
         signup,
         logout,
         upgradeToPremium,
-        cancelPremium,
         canPerformAction,
     };
 

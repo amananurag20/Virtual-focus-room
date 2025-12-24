@@ -4,22 +4,37 @@
  * A real-time collaboration server for video rooms using Socket.io and WebRTC signaling
  */
 
-const express = require("express");
-const { createServer } = require("http");
-const { Server } = require("socket.io");
-const cors = require("cors");
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const roomManager = require('./utils/roomManager');
+const { setupSocketHandlers } = require('./handlers/socketHandlers');
+const authRoutes = require('./routes/authRoutes');
 
-// Configuration
-const config = require("./config");
-const { setupSocketHandlers } = require("./handlers/socketHandlers");
+dotenv.config();
 
-// Initialize Express app
 const app = express();
-const httpServer = createServer(app);
+const server = http.createServer(app);
+const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors(config.cors));
-app.use(express.json());
+app.use(cors());
+app.use(express.json()); // Parse JSON bodies
+
+// Connect to MongoDB
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/focusroom';
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('✅ MongoDB Connected'))
+    .catch(err => {
+        console.error('❌ MongoDB Connection Error:', err.message);
+        console.log('⚠️ Running without database persistence for now.');
+    });
+
+// API Routes
+app.use('/api/auth', authRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -27,8 +42,16 @@ app.get("/health", (req, res) => {
 });
 
 // Initialize Socket.io
-const io = new Server(httpServer, {
-    cors: config.cors
+const io = new Server(server, {
+    cors: {
+        origin: [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://localhost:5176"
+        ],
+        methods: ["GET", "POST"]
+    }
 });
 
 // Socket connection handler
@@ -37,13 +60,13 @@ io.on("connection", (socket) => {
 });
 
 // Start server
-httpServer.listen(config.port, () => {
+server.listen(PORT, () => {
     console.log(`
 ╔════════════════════════════════════════════╗
 ║     Virtual Focus Room Server Started      ║
 ╠════════════════════════════════════════════╣
-║  Port: ${config.port}                               ║
-║  Health: http://localhost:${config.port}/health      ║
+║  Port: ${PORT}                                ║
+║  Health: http://localhost:${PORT}/health      ║
 ╚════════════════════════════════════════════╝
-    `);
+`);
 });
