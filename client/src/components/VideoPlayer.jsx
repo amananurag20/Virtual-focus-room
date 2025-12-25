@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { HiMicrophone, HiVideoCamera, HiBellAlert, HiComputerDesktop, HiEye, HiStar } from 'react-icons/hi2';
+import { TbPinFilled, TbPin } from 'react-icons/tb';
 import { Button } from '@/components/ui/button';
 
 export default function VideoPlayer({
@@ -15,7 +16,9 @@ export default function VideoPlayer({
     isGuest = false,
     userTier,
     size = 'medium',
-    totalParticipants = 1
+    totalParticipants = 1,
+    isPinned = false,
+    onPin
 }) {
     const internalVideoRef = useRef(null);
     const actualRef = videoRef || internalVideoRef;
@@ -129,7 +132,8 @@ export default function VideoPlayer({
                 relative rounded-xl sm:rounded-2xl overflow-hidden 
                 bg-card border border-border shadow-lg 
                 group transition-all duration-300 ease-out
-                ${isPinged ? 'ring-4 ring-primary ring-offset-2 ring-offset-background animate-pulse' : ''}
+                ${isPinned ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
+                ${isPinged ? 'ring-4 ring-amber-500 ring-offset-2 ring-offset-background animate-pulse' : ''}
                 aspect-video
             `}
             onMouseEnter={() => setShowControls(true)}
@@ -213,13 +217,33 @@ export default function VideoPlayer({
                 </div>
             )}
 
-            {/* Ping button for remote users */}
-            {!isLocal && onPing && !isRemoteGuest && (
-                <div className={`
-                    absolute top-2 right-2 sm:top-3 sm:right-3 
-                    transition-opacity duration-200 
-                    ${showControls ? 'opacity-100' : 'opacity-0'}
-                `}>
+            {/* Pin and Ping buttons */}
+            <div className={`
+                absolute top-2 right-2 sm:top-3 sm:right-3 
+                flex items-center gap-1.5
+                transition-opacity duration-200 
+                ${showControls || isPinned ? 'opacity-100' : 'opacity-0'}
+            `}>
+                {/* Pin button - available for all users */}
+                {onPin && (
+                    <Button
+                        size="icon"
+                        variant={isPinned ? "default" : "secondary"}
+                        onClick={onPin}
+                        className={`
+                            ${sizeConfig.controlsSize} rounded-full 
+                            ${isPinned
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background/80 backdrop-blur-sm hover:bg-primary hover:text-primary-foreground'
+                            }
+                        `}
+                        title={isPinned ? 'Unpin' : 'Pin video'}
+                    >
+                        {isPinned ? <TbPinFilled className={sizeConfig.statusIconInner} /> : <TbPin className={sizeConfig.statusIconInner} />}
+                    </Button>
+                )}
+                {/* Ping button for remote users */}
+                {!isLocal && onPing && !isRemoteGuest && (
                     <Button
                         size="icon"
                         variant="secondary"
@@ -227,13 +251,14 @@ export default function VideoPlayer({
                         className={`
                             ${sizeConfig.controlsSize} rounded-full 
                             bg-background/80 backdrop-blur-sm 
-                            hover:bg-primary hover:text-primary-foreground
+                            hover:bg-amber-500 hover:text-white
                         `}
+                        title="Ping user"
                     >
                         <HiBellAlert className={sizeConfig.statusIconInner} />
                     </Button>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Bottom info bar */}
             <div className={`

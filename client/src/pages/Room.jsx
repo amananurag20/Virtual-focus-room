@@ -59,6 +59,7 @@ export default function Room() {
     const [isAmbientOpen, setIsAmbientOpen] = useState(false);
     const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
     const [pingTarget, setPingTarget] = useState(null);
+    const [pinnedUser, setPinnedUser] = useState(null); // Track pinned video
     const [unreadCount, setUnreadCount] = useState(0);
     const [existingUsers, setExistingUsers] = useState([]);
     const [showGuestBanner, setShowGuestBanner] = useState(isGuest);
@@ -217,6 +218,20 @@ export default function Room() {
     }, [toggleScreenShare, isScreenSharing, socket, permissions]);
 
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
+
+    // Handle pinning a user's video - pin to make it larger, click again to unpin
+    const handlePinUser = useCallback((socketId, username, isLocal = false) => {
+        setPinnedUser(prev => {
+            if (prev?.socketId === socketId) {
+                // Unpin if clicking the same user
+                toast(`Unpinned ${isLocal ? 'yourself' : username}`, { icon: '📌' });
+                return null;
+            }
+            // Pin new user
+            toast.success(`Pinned ${isLocal ? 'yourself' : username}`, { icon: '📌' });
+            return { socketId, username, isLocal };
+        });
+    }, []);
 
     const handleSendMessage = useCallback(async (message, attachments = []) => {
         if (!permissions.canChat) {
@@ -468,22 +483,27 @@ export default function Room() {
                 </DialogContent>
             </Dialog>
 
-            {/* Main Content - Responsive */}
+            {/* Main Content - Responsive with proper scrolling */}
             <main className="flex-1 flex overflow-hidden relative">
-                <div className="flex-1 p-2 sm:p-4 overflow-auto flex items-center justify-center">
-                    <VideoGrid
-                        localStream={stream}
-                        localVideoRef={localVideoRef}
-                        isLocalAudioOn={isAudioOn}
-                        isLocalVideoOn={isVideoOn}
-                        isScreenSharing={isScreenSharing}
-                        username={username}
-                        participants={participants}
-                        remoteStreams={remoteStreams}
-                        pingTarget={pingTarget}
-                        onPingUser={handlePingUser}
-                        isGuest={isGuest}
-                    />
+                <div className="flex-1 p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
+                    <div className="min-h-full flex items-start sm:items-center justify-center py-2">
+                        <VideoGrid
+                            localStream={stream}
+                            localVideoRef={localVideoRef}
+                            isLocalAudioOn={isAudioOn}
+                            isLocalVideoOn={isVideoOn}
+                            isScreenSharing={isScreenSharing}
+                            username={username}
+                            participants={participants}
+                            remoteStreams={remoteStreams}
+                            pingTarget={pingTarget}
+                            onPingUser={handlePingUser}
+                            isGuest={isGuest}
+                            pinnedUser={pinnedUser}
+                            onPinUser={handlePinUser}
+                            localSocketId={socket?.id}
+                        />
+                    </div>
                 </div>
 
                 {/* Side panels - Full screen overlay on mobile, side panel on desktop */}
