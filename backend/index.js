@@ -24,9 +24,45 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// CORS Configuration logic
+const getCorsConfig = () => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
 
-app.use(cors());
+    return {
+        origin: (origin, callback) => {
+            // Allow requests with no origin (mobile apps, curl, etc)
+            if (!origin) return callback(null, true);
+
+            if (isProduction) {
+                if (allowedOrigins.indexOf(origin) !== -1) {
+                    callback(null, true);
+                } else {
+                    callback(new Error('Not allowed by CORS'));
+                }
+            } else {
+                // Development: Allow localhost, 127.0.0.1, and local network IPs
+                if (
+                    origin.includes('localhost') ||
+                    origin.includes('127.0.0.1') ||
+                    /^http:\/\/192\.168\.\d+\.\d+/.test(origin) ||
+                    /^http:\/\/10\.\d+\.\d+\.\d+/.test(origin)
+                ) {
+                    callback(null, true);
+                } else {
+                    callback(new Error('Not allowed by CORS'));
+                }
+            }
+        },
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        credentials: true
+    };
+};
+
+const corsOptions = getCorsConfig();
+
+// Middleware
+app.use(cors(corsOptions));
 app.use(express.json()); // Parse JSON bodies
 
 // Connect to MongoDB
@@ -52,15 +88,7 @@ app.get("/health", (req, res) => {
 
 // Initialize Socket.io
 const io = new Server(server, {
-    cors: {
-        origin: [
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://localhost:5176"
-        ],
-        methods: ["GET", "POST"]
-    }
+    cors: corsOptions
 });
 
 // Socket connection handler
