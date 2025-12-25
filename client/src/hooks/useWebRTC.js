@@ -28,22 +28,37 @@ export function useWebRTC(socket, localStream) {
 
     // Replace tracks in all existing peer connections (for screen share)
     const replaceTracksInAllConnections = useCallback((newStream) => {
-        if (!newStream) return;
+        if (!newStream) {
+            console.warn('[WebRTC] Cannot replace tracks: No stream provided');
+            return;
+        }
 
         const videoTrack = newStream.getVideoTracks()[0];
         const audioTrack = newStream.getAudioTracks()[0];
 
+        console.log(`[WebRTC] Replacing tracks. Video: ${videoTrack?.id}, Audio: ${audioTrack?.id}`);
+
         Object.entries(peerConnections.current).forEach(([socketId, pc]) => {
             const senders = pc.getSenders();
+            console.log(`[WebRTC] Connection ${socketId} has ${senders.length} senders`);
 
             senders.forEach(sender => {
-                if (sender.track?.kind === 'video' && videoTrack) {
-                    console.log('[WebRTC] Replacing video track for:', socketId);
+                const trackKind = sender.track?.kind;
+                // If track is null, maybe try to guess based on if we have videoTrack?
+                // But sender.track shouldn't be null if it was active.
+
+                if (trackKind === 'video' && videoTrack) {
+                    if (sender.track.id === videoTrack.id) {
+                        console.log(`[WebRTC] Video track already active for ${socketId}, skipping`);
+                        return;
+                    }
+                    console.log(`[WebRTC] Replacing video track for: ${socketId} (old: ${sender.track?.id} -> new: ${videoTrack.id})`);
                     sender.replaceTrack(videoTrack).catch(err => {
                         console.error('[WebRTC] Error replacing video track:', err);
                     });
-                } else if (sender.track?.kind === 'audio' && audioTrack) {
-                    console.log('[WebRTC] Replacing audio track for:', socketId);
+                } else if (trackKind === 'audio' && audioTrack) {
+                    if (sender.track?.id === audioTrack.id) return;
+                    console.log(`[WebRTC] Replacing audio track for: ${socketId}`);
                     sender.replaceTrack(audioTrack).catch(err => {
                         console.error('[WebRTC] Error replacing audio track:', err);
                     });
