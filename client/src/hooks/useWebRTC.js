@@ -13,11 +13,51 @@ export function useWebRTC(socket, localStream) {
     const peerConnections = useRef({});
     const localStreamRef = useRef(localStream);
 
-    // Keep localStreamRef updated
+    // Keep localStreamRef updated and replace tracks in peer connections when stream changes
     useEffect(() => {
+        const previousStream = localStreamRef.current;
         localStreamRef.current = localStream;
+
         console.log('[WebRTC] Local stream updated:', localStream?.id, 'tracks:', localStream?.getTracks().length);
+
+        // If stream changed and we have peer connections, replace the tracks
+        if (localStream && previousStream !== localStream) {
+            replaceTracksInAllConnections(localStream);
+        }
     }, [localStream]);
+
+    // Replace tracks in all existing peer connections (for screen share)
+    const replaceTracksInAllConnections = useCallback((newStream) => {
+        if (!newStream) return;
+
+        const videoTrack = newStream.getVideoTracks()[0];
+        const audioTrack = newStream.getAudioTracks()[0];
+
+        Object.entries(peerConnections.current).forEach(([socketId, pc]) => {
+            const senders = pc.getSenders();
+
+            senders.forEach(sender => {
+                if (sender.track?.kind === 'video' && videoTrack) {
+                    console.log('[WebRTC] Replacing video track for:', socketId);
+                    sender.replaceTrack(videoTrack).catch(err => {
+                        console.error('[WebRTC] Error replacing video track:', err);
+                    });
+                } else if (sender.track?.kind === 'audio' && audioTrack) {
+                    console.log('[WebRTC] Replacing audio track for:', socketId);
+                    sender.replaceTrack(audioTrack).catch(err => {
+                        console.error('[WebRTC] Error replacing audio track:', err);
+                    });
+                }
+            });
+        });
+    }, []);
+
+    // Expose function to manually update tracks (called when screen sharing toggles)
+    const updateLocalTracks = useCallback((newStream) => {
+        if (!newStream) return;
+        localStreamRef.current = newStream;
+        replaceTracksInAllConnections(newStream);
+    }, [replaceTracksInAllConnections]);
 
     const createPeerConnection = useCallback((targetSocketId, username, isInitiator = false) => {
         // Close existing connection if any
@@ -205,6 +245,7 @@ export function useWebRTC(socket, localStream) {
         remoteStreams,
         initiateCall,
         closePeerConnection,
-        closeAllConnections
+        closeAllConnections,
+        updateLocalTracks  // Export function to update tracks when screen sharing
     };
 }

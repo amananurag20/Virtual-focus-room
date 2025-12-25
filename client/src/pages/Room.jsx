@@ -48,7 +48,7 @@ export default function Room() {
     const { theme } = useTheme();
     const { user, tier, isGuest, isLoggedIn, isPremium, permissions } = useAuth();
     const { stream, isAudioOn, isVideoOn, isScreenSharing, startStream, stopStream, toggleAudio, toggleVideo, toggleScreenShare } = useMediaStream();
-    const { remoteStreams, initiateCall, closeAllConnections } = useWebRTC(socket, stream);
+    const { remoteStreams, initiateCall, closeAllConnections, updateLocalTracks } = useWebRTC(socket, stream);
 
     const [roomInfo, setRoomInfo] = useState(null);
     const [participants, setParticipants] = useState({});
@@ -208,6 +208,14 @@ export default function Room() {
             return;
         }
         const result = await toggleScreenShare();
+
+        // Update tracks in all peer connections after a short delay to allow stream to update
+        setTimeout(() => {
+            if (stream) {
+                updateLocalTracks(stream);
+            }
+        }, 100);
+
         if (result) {
             toast.success('Screen sharing started');
             socket?.emit('media:toggle', { type: 'screen', enabled: true });
@@ -215,7 +223,7 @@ export default function Room() {
             toast('Screen sharing stopped', { icon: '🖥️' });
             socket?.emit('media:toggle', { type: 'screen', enabled: false });
         }
-    }, [toggleScreenShare, isScreenSharing, socket, permissions]);
+    }, [toggleScreenShare, isScreenSharing, socket, permissions, stream, updateLocalTracks]);
 
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
 
