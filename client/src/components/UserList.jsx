@@ -34,30 +34,30 @@ export default function UserList({ participants, username, socketId, onPingUser,
     };
 
     return (
-        <Card className="w-80 h-full border-l rounded-none animate-in slide-in-from-right-5 duration-300">
-            <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
+        <Card className="w-full sm:w-80 h-full border-l rounded-none flex flex-col animate-in slide-in-from-right-5 duration-300 bg-card">
+            <CardHeader className="flex flex-row items-center justify-between py-3 sm:py-4 px-4 border-b shrink-0">
                 <CardTitle className="text-base font-semibold">Participants ({participantList.length + 1})</CardTitle>
                 <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full">
                     <HiXMark className="w-5 h-5" />
                 </Button>
             </CardHeader>
-            <CardContent className="p-3 space-y-2 overflow-y-auto h-[calc(100%-65px)]">
+            <CardContent className="p-3 space-y-2 overflow-y-auto flex-1">
                 {/* Current User */}
                 <div className={`flex items-center justify-between p-3 rounded-xl border ${isPremium ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30' : 'bg-primary/10 border-primary/20'}`}>
-                    <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${isPremium ? 'from-amber-500 to-orange-500' : isGuest ? 'from-slate-500 to-slate-600' : 'from-indigo-500 to-purple-600'} flex items-center justify-center text-sm font-bold text-white shadow`}>
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br ${isPremium ? 'from-amber-500 to-orange-500' : isGuest ? 'from-slate-500 to-slate-600' : 'from-indigo-500 to-purple-600'} flex items-center justify-center text-xs sm:text-sm font-bold text-white shadow shrink-0`}>
                             {username.slice(0, 2).toUpperCase()}
                         </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <p className="font-medium text-sm">{username}</p>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                                <p className="font-medium text-sm truncate">{username}</p>
                                 {isPremium && (
-                                    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold">
+                                    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shrink-0">
                                         <HiStar className="w-2.5 h-2.5" /> Pro
                                     </span>
                                 )}
                                 {isGuest && (
-                                    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-500 text-white font-semibold">
+                                    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-500 text-white font-semibold shrink-0">
                                         <HiEye className="w-2.5 h-2.5" /> Guest
                                     </span>
                                 )}
@@ -76,13 +76,13 @@ export default function UserList({ participants, username, socketId, onPingUser,
                             key={participant.socketId}
                             className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors group"
                         >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarGradient(participant.userTier)} flex items-center justify-center text-sm font-bold text-white shadow`}>
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br ${getAvatarGradient(participant.userTier)} flex items-center justify-center text-xs sm:text-sm font-bold text-white shadow shrink-0`}>
                                     {participant.username?.slice(0, 2).toUpperCase()}
                                 </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <p className="font-medium text-sm">{participant.username}</p>
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                                        <p className="font-medium text-sm truncate">{participant.username}</p>
                                         {getTierBadge(participant.userTier)}
                                     </div>
                                     <div className="flex items-center gap-2 mt-0.5">
@@ -104,7 +104,7 @@ export default function UserList({ participants, username, socketId, onPingUser,
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onPingUser(participant.socketId)}
-                                    className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                                    className="h-8 w-8 rounded-full opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 shrink-0"
                                 >
                                     <HiBellAlert className="w-4 h-4" />
                                 </Button>

@@ -98,7 +98,7 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
     const renderAttachment = (att, isOwn = false) => {
         if (att.isImage || att.type?.startsWith('image/')) {
             return (
-                <div className="mt-2 rounded-lg overflow-hidden max-w-[200px]">
+                <div className="mt-2 rounded-lg overflow-hidden max-w-[150px] sm:max-w-[200px]">
                     <img
                         src={att.preview || att.url}
                         alt={att.name}
@@ -111,7 +111,7 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
 
         return (
             <div className={`mt-2 flex items-center gap-2 p-2 rounded-lg ${isOwn ? 'bg-primary-foreground/10' : 'bg-muted'}`}>
-                <HiDocument className="w-5 h-5 shrink-0" />
+                <HiDocument className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{att.name}</p>
                     <p className="text-[10px] opacity-70">{formatFileSize(att.size)}</p>
@@ -121,8 +121,8 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
     };
 
     return (
-        <Card className="w-80 h-full border-l rounded-none flex flex-col animate-in slide-in-from-right-5 duration-300">
-            <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
+        <Card className="w-full sm:w-80 h-full border-l rounded-none flex flex-col animate-in slide-in-from-right-5 duration-300 bg-card">
+            <CardHeader className="flex flex-row items-center justify-between py-3 sm:py-4 px-4 border-b shrink-0">
                 <CardTitle className="text-base font-semibold">Chat</CardTitle>
                 <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full">
                     <HiXMark className="w-5 h-5" />
@@ -132,11 +132,11 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
             <CardContent className="flex-1 p-3 overflow-y-auto space-y-3">
                 {/* Guest Warning */}
                 {isGuest && (
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs">
+                    <div className="flex items-start gap-2 p-2.5 sm:p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs">
                         <HiLockClosed className="w-4 h-4 shrink-0 mt-0.5" />
                         <div>
                             <p className="font-medium">View Only Mode</p>
-                            <p className="opacity-80">Sign up to send messages and attachments.</p>
+                            <p className="opacity-80 text-[11px]">Sign up to send messages.</p>
                         </div>
                     </div>
                 )}
@@ -150,16 +150,16 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
                         const isOwn = msg.socketId === currentSocketId;
                         return (
                             <div key={index} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[80%] ${isOwn ? 'order-2' : ''}`}>
+                                <div className={`max-w-[85%] sm:max-w-[80%] ${isOwn ? 'order-2' : ''}`}>
                                     {!isOwn && (
-                                        <p className="text-xs text-muted-foreground mb-1 ml-1">{msg.username}</p>
+                                        <p className="text-xs text-muted-foreground mb-1 ml-1 truncate">{msg.username}</p>
                                     )}
-                                    <div className={`px-4 py-2.5 rounded-2xl ${isOwn
+                                    <div className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${isOwn
                                         ? 'bg-primary text-primary-foreground rounded-br-md'
                                         : 'bg-muted rounded-bl-md'
                                         }`}>
                                         {msg.message && (
-                                            <p className="text-sm leading-relaxed">{msg.message}</p>
+                                            <p className="text-sm leading-relaxed break-words">{msg.message}</p>
                                         )}
                                         {/* Render attachments */}
                                         {msg.attachments?.map((att, i) => (
@@ -189,18 +189,18 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
                                 className="relative group"
                             >
                                 {att.isImage ? (
-                                    <div className="w-16 h-16 rounded-lg overflow-hidden border">
+                                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border">
                                         <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 rounded-lg border flex flex-col items-center justify-center bg-muted p-1">
-                                        <HiDocument className="w-5 h-5 text-muted-foreground" />
-                                        <p className="text-[8px] text-center truncate w-full mt-1">{att.name}</p>
+                                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg border flex flex-col items-center justify-center bg-muted p-1">
+                                        <HiDocument className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                                        <p className="text-[7px] sm:text-[8px] text-center truncate w-full mt-1">{att.name}</p>
                                     </div>
                                 )}
                                 <button
                                     onClick={() => removeAttachment(att.id)}
-                                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
                                 >
                                     <HiXMark className="w-3 h-3" />
                                 </button>
@@ -211,15 +211,15 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
             )}
 
             {/* Input Area */}
-            <form onSubmit={handleSubmit} className="p-3 border-t shrink-0">
-                <div className="flex gap-2 items-end">
+            <form onSubmit={handleSubmit} className="p-2 sm:p-3 border-t shrink-0">
+                <div className="flex gap-1.5 sm:gap-2 items-end">
                     {/* Attachment Button */}
                     <div className="relative">
                         <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-10 w-10 shrink-0"
+                            className="h-9 w-9 sm:h-10 sm:w-10 shrink-0"
                             onClick={() => {
                                 if (!permissions.canSendAttachments) {
                                     toast.error('Please sign up to send attachments');
@@ -229,12 +229,12 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
                             }}
                             disabled={!permissions.canChat}
                         >
-                            <HiPaperClip className="w-5 h-5" />
+                            <HiPaperClip className="w-4 h-4 sm:w-5 sm:h-5" />
                         </Button>
 
                         {/* Attachment Menu */}
                         {showAttachMenu && (
-                            <div className="absolute bottom-12 left-0 w-40 p-2 rounded-xl bg-popover border shadow-lg animate-in slide-in-from-bottom-2">
+                            <div className="absolute bottom-12 left-0 w-36 sm:w-40 p-2 rounded-xl bg-popover border shadow-lg animate-in slide-in-from-bottom-2">
                                 <input
                                     type="file"
                                     ref={fileInputRef}
@@ -273,13 +273,14 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder={permissions.canChat ? "Type a message..." : "Sign up to chat"}
-                        className="flex-1"
+                        className="flex-1 h-9 sm:h-10 text-sm"
                         maxLength={500}
                         disabled={!permissions.canChat}
                     />
                     <Button
                         type="submit"
                         size="icon"
+                        className="h-9 w-9 sm:h-10 sm:w-10"
                         disabled={(!message.trim() && attachments.length === 0) || !permissions.canChat}
                     >
                         <HiPaperAirplane className="w-4 h-4" />

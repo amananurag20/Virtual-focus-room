@@ -136,15 +136,20 @@ export default function Home() {
         setIsAuthLoading(true);
 
         try {
+            let result;
             if (authMode === 'login') {
-                await login(authEmail, authPassword);
+                result = await login(authEmail, authPassword);
             } else {
-                await signup(authEmail, authPassword, authName);
+                result = await signup(authEmail, authPassword, authName);
             }
-            setAuthDialogOpen(false);
-            resetAuthForm();
+
+            if (result.success) {
+                setAuthDialogOpen(false);
+                resetAuthForm();
+            }
         } catch (error) {
-            toast.error(error.message || 'Authentication failed');
+            console.error('Authentication error:', error);
+            // Toast is handled in AuthContext or we can add specific one here if needed
         } finally {
             setIsAuthLoading(false);
         }
@@ -212,80 +217,82 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-background text-foreground">
-            {/* Navbar */}
+            {/* Navbar - Responsive */}
             <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-xl">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                                <HiVideoCamera className="w-5 h-5 text-white" />
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                                <HiVideoCamera className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                             </div>
                             <div>
-                                <span className="text-xl font-bold tracking-tight">FocusRoom</span>
-                                <p className="text-[10px] text-muted-foreground -mt-0.5">Virtual Coworking</p>
+                                <span className="text-lg sm:text-xl font-bold tracking-tight">FocusRoom</span>
+                                <p className="text-[9px] sm:text-[10px] text-muted-foreground -mt-0.5 hidden sm:block">Virtual Coworking</p>
                             </div>
                         </div>
-                        {getTierBadge()}
+                        <div className="hidden sm:block">{getTierBadge()}</div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 sm:gap-3">
                         {isLoggedIn && (
                             <>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => navigate('/dashboard')}
-                                    className="rounded-full"
+                                    className="rounded-full h-8 w-8 sm:h-9 sm:w-9"
                                     title="Dashboard"
                                 >
-                                    <HiChartBar className="w-5 h-5" />
+                                    <HiChartBar className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setCalendarOpen(true)}
-                                    className="rounded-full"
+                                    className="rounded-full h-8 w-8 sm:h-9 sm:w-9 hidden sm:flex"
                                     title="Calendar & Tasks"
                                 >
-                                    <HiCalendar className="w-5 h-5" />
+                                    <HiCalendar className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </Button>
                             </>
                         )}
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
-                            {theme === 'dark' ? <HiSun className="w-5 h-5" /> : <HiMoon className="w-5 h-5" />}
+                        <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full h-8 w-8 sm:h-9 sm:w-9">
+                            {theme === 'dark' ? <HiSun className="w-4 h-4 sm:w-5 sm:h-5" /> : <HiMoon className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </Button>
 
                         {!isLoggedIn ? (
-                            <div className="flex items-center gap-2">
-                                <Button variant="ghost" onClick={() => { setAuthMode('login'); setAuthDialogOpen(true); }}>
+                            <div className="flex items-center gap-1 sm:gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setAuthMode('login'); setAuthDialogOpen(true); }} className="h-8 px-2 sm:px-3 text-xs sm:text-sm">
                                     Log In
                                 </Button>
-                                <Button onClick={() => { setAuthMode('signup'); setAuthDialogOpen(true); }} className="shadow-lg shadow-primary/25">
-                                    Get Started
+                                <Button size="sm" onClick={() => { setAuthMode('signup'); setAuthDialogOpen(true); }} className="shadow-lg shadow-primary/25 h-8 px-2 sm:px-4 text-xs sm:text-sm">
+                                    <span className="hidden sm:inline">Get Started</span>
+                                    <span className="sm:hidden">Sign Up</span>
                                 </Button>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
                                 {!isPremium && (
                                     <Button
                                         size="sm"
-                                        className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25"
+                                        className="gap-1 sm:gap-2 h-8 px-2 sm:px-3 text-xs sm:text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25"
                                         onClick={() => setPricingDialogOpen(true)}
                                     >
-                                        <HiStar className="w-4 h-4" /> Upgrade
+                                        <HiStar className="w-3 h-3 sm:w-4 sm:h-4" />
+                                        <span className="hidden sm:inline">Upgrade</span>
                                     </Button>
                                 )}
-                                <div className="flex items-center gap-3 pl-3 border-l">
+                                <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l">
                                     <div className="flex items-center gap-2">
-                                        <Avatar className="h-8 w-8 ring-2 ring-primary/20">
-                                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-bold">
+                                        <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-primary/20">
+                                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs sm:text-sm font-bold">
                                                 {user?.name?.charAt(0).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-sm font-medium hidden sm:block">{user?.name}</span>
+                                        <span className="text-sm font-medium hidden md:block">{user?.name}</span>
                                     </div>
-                                    <Button variant="ghost" size="icon" onClick={logout} title="Logout" className="rounded-full">
-                                        <HiArrowRightOnRectangle className="w-5 h-5" />
+                                    <Button variant="ghost" size="icon" onClick={logout} title="Logout" className="rounded-full h-8 w-8 sm:h-9 sm:w-9">
+                                        <HiArrowRightOnRectangle className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </Button>
                                 </div>
                             </div>
@@ -294,72 +301,72 @@ export default function Home() {
                 </div>
             </nav>
 
-            {/* Hero Section */}
-            <section className="pt-24 pb-12 px-6 relative overflow-hidden">
+            {/* Hero Section - Responsive */}
+            <section className="pt-20 sm:pt-24 pb-8 sm:pb-12 px-4 sm:px-6 relative overflow-hidden">
                 {/* Background Elements */}
                 <div className="absolute inset-0 -z-10">
-                    <div className="absolute top-20 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl opacity-50" />
-                    <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl opacity-50" />
+                    <div className="absolute top-20 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-indigo-500/10 rounded-full blur-3xl opacity-50" />
+                    <div className="absolute bottom-0 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-purple-500/10 rounded-full blur-3xl opacity-50" />
                 </div>
 
                 <div className="max-w-7xl mx-auto">
-                    <div className="grid lg:grid-cols-2 gap-10 items-center">
+                    <div className="grid lg:grid-cols-2 gap-8 lg:gap-10 items-center">
                         {/* Left Column - Hero Content */}
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6 text-center lg:text-left">
                             {/* Live Badge */}
-                            <div className="inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                                <span className="relative flex h-2.5 w-2.5">
+                            <div className="inline-flex items-center gap-2 sm:gap-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                                <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5">
                                     <span className="animate-ping absolute h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                                    <span className="relative rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                                    <span className="relative rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-green-500"></span>
                                 </span>
-                                <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                                    {totalOnline.toLocaleString()} people focusing right now
+                                <span className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
+                                    {totalOnline.toLocaleString()} people focusing
                                 </span>
                             </div>
 
                             {/* Main Heading */}
-                            <div className="space-y-3">
-                                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
+                            <div className="space-y-2 sm:space-y-3">
+                                <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight tracking-tight">
                                     Focus better,{' '}
                                     <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                                         together.
                                     </span>
                                 </h1>
-                                <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
+                                <p className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto lg:mx-0 leading-relaxed">
                                     Join virtual coworking sessions with focused individuals.
                                     Stay accountable, stay productive.
                                 </p>
                             </div>
 
-                            {/* Stats Row */}
-                            <div className="flex items-center gap-8 py-2">
+                            {/* Stats Row - Hidden on mobile */}
+                            <div className="hidden sm:flex items-center justify-center lg:justify-start gap-6 sm:gap-8 py-2">
                                 <div>
-                                    <p className="text-2xl font-bold">50K+</p>
+                                    <p className="text-xl sm:text-2xl font-bold">50K+</p>
                                     <p className="text-xs text-muted-foreground">Active Users</p>
                                 </div>
                                 <div className="w-px h-8 bg-border" />
                                 <div>
-                                    <p className="text-2xl font-bold">1M+</p>
+                                    <p className="text-xl sm:text-2xl font-bold">1M+</p>
                                     <p className="text-xs text-muted-foreground">Focus Hours</p>
                                 </div>
                                 <div className="w-px h-8 bg-border" />
                                 <div>
-                                    <p className="text-2xl font-bold">4.9</p>
+                                    <p className="text-xl sm:text-2xl font-bold">4.9</p>
                                     <p className="text-xs text-muted-foreground">User Rating</p>
                                 </div>
                             </div>
 
                             {/* CTA Buttons */}
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                                 <Button
                                     size="lg"
-                                    className="h-12 px-6 text-base shadow-xl shadow-primary/25 gap-2"
+                                    className="w-full sm:w-auto h-11 sm:h-12 px-6 text-sm sm:text-base shadow-xl shadow-primary/25 gap-2"
                                     onClick={() => document.getElementById('username-input')?.focus()}
                                 >
-                                    Start Focusing <HiArrowRight className="w-5 h-5" />
+                                    Start Focusing <HiArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </Button>
-                                <Button variant="outline" size="lg" className="h-12 px-6 text-base gap-2">
-                                    <HiPlay className="w-5 h-5" /> Watch Demo
+                                <Button variant="outline" size="lg" className="w-full sm:w-auto h-11 sm:h-12 px-6 text-sm sm:text-base gap-2">
+                                    <HiPlay className="w-4 h-4 sm:w-5 sm:h-5" /> Watch Demo
                                 </Button>
                             </div>
                         </div>

@@ -58,93 +58,94 @@ export default function Dashboard({ isOpen, onClose }) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-card">
-                <CardHeader className="flex flex-row items-center justify-between py-4 border-b sticky top-0 bg-card z-10">
-                    <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                        <HiChartBar className="w-6 h-6 text-indigo-500" />
-                        Productivity Dashboard
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4">
+            <Card className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto bg-card">
+                <CardHeader className="flex flex-row items-center justify-between py-3 sm:py-4 px-4 sm:px-6 border-b sticky top-0 bg-card z-10">
+                    <CardTitle className="text-base sm:text-xl font-semibold flex items-center gap-2">
+                        <HiChartBar className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
+                        <span className="hidden sm:inline">Productivity Dashboard</span>
+                        <span className="sm:hidden">Dashboard</span>
                     </CardTitle>
                     <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full">
                         <HiXMark className="w-5 h-5" />
                     </Button>
                 </CardHeader>
 
-                <CardContent className="p-6 space-y-6">
+                <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                     {loading ? (
-                        <div className="flex items-center justify-center h-64">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+                        <div className="flex items-center justify-center h-48 sm:h-64">
+                            <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-indigo-500"></div>
                         </div>
                     ) : (
                         <>
-                            {/* Time Range Selector */}
-                            <div className="flex gap-2 flex-wrap">
+                            {/* Time Range Selector - Scrollable on mobile */}
+                            <div className="flex gap-2 flex-wrap sm:flex-nowrap overflow-x-auto pb-2 sm:pb-0 -mx-1 px-1">
                                 {['today', 'week', 'month', 'total'].map(range => (
                                     <Button
                                         key={range}
                                         variant={timeRange === range ? 'default' : 'outline'}
                                         size="sm"
                                         onClick={() => setTimeRange(range)}
-                                        className="capitalize"
+                                        className="capitalize text-xs sm:text-sm px-3 sm:px-4 shrink-0"
                                     >
                                         {range}
                                     </Button>
                                 ))}
                             </div>
 
-                            {/* Quick Stats Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Quick Stats Cards - 2 columns on mobile, 4 on desktop */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                                 <Card className="border-2 hover:shadow-lg transition-shadow">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                                                <HiClock className="w-6 h-6 text-indigo-500" />
+                                    <CardContent className="p-3 sm:p-4">
+                                        <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                                                <HiClock className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
                                             </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Focus Time</p>
-                                                <p className="text-2xl font-bold">{formatTime(currentStats.meetingTime)}</p>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] sm:text-sm text-muted-foreground truncate">Focus Time</p>
+                                                <p className="text-lg sm:text-2xl font-bold truncate">{formatTime(currentStats.meetingTime)}</p>
                                             </div>
                                         </div>
                                     </CardContent>
                                 </Card>
 
                                 <Card className="border-2 hover:shadow-lg transition-shadow">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-                                                <HiCheckCircle className="w-6 h-6 text-green-500" />
+                                    <CardContent className="p-3 sm:p-4">
+                                        <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-green-100 dark:bg-green-900/50 flex items-center justify-center shrink-0">
+                                                <HiCheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
                                             </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Tasks Done</p>
-                                                <p className="text-2xl font-bold">{currentStats.completed}/{currentStats.tasks}</p>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="border-2 hover:shadow-lg transition-shadow">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
-                                                <HiTrophy className="w-6 h-6 text-amber-500" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Success Rate</p>
-                                                <p className="text-2xl font-bold">{completionRate}%</p>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] sm:text-sm text-muted-foreground truncate">Tasks Done</p>
+                                                <p className="text-lg sm:text-2xl font-bold truncate">{currentStats.completed}/{currentStats.tasks}</p>
                                             </div>
                                         </div>
                                     </CardContent>
                                 </Card>
 
                                 <Card className="border-2 hover:shadow-lg transition-shadow">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
-                                                <HiCalendar className="w-6 h-6 text-purple-500" />
+                                    <CardContent className="p-3 sm:p-4">
+                                        <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
+                                                <HiTrophy className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
                                             </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Avg/Day</p>
-                                                <p className="text-2xl font-bold">{timeRange === 'week' ? Math.round(currentStats.meetingTime / 7 / 60) : Math.round(currentStats.meetingTime / 30 / 60)}m</p>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] sm:text-sm text-muted-foreground truncate">Success Rate</p>
+                                                <p className="text-lg sm:text-2xl font-bold">{completionRate}%</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="border-2 hover:shadow-lg transition-shadow">
+                                    <CardContent className="p-3 sm:p-4">
+                                        <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center shrink-0">
+                                                <HiCalendar className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] sm:text-sm text-muted-foreground truncate">Avg/Day</p>
+                                                <p className="text-lg sm:text-2xl font-bold">{timeRange === 'week' ? Math.round(currentStats.meetingTime / 7 / 60) : Math.round(currentStats.meetingTime / 30 / 60)}m</p>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -152,83 +153,85 @@ export default function Dashboard({ isOpen, onClose }) {
                             </div>
 
                             {/* Secondary Stats Row */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-3 gap-2 sm:gap-4">
                                 <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-none">
-                                    <CardContent className="p-4 text-center">
-                                        <p className="text-sm text-muted-foreground mb-1">Pending Tasks</p>
-                                        <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{currentStats.tasks - currentStats.completed}</p>
+                                    <CardContent className="p-3 sm:p-4 text-center">
+                                        <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Pending</p>
+                                        <p className="text-xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">{currentStats.tasks - currentStats.completed}</p>
                                     </CardContent>
                                 </Card>
 
                                 <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-none">
-                                    <CardContent className="p-4 text-center">
-                                        <p className="text-sm text-muted-foreground mb-1">Total Hours</p>
-                                        <p className="text-3xl font-bold text-green-600 dark:text-green-400">{Math.floor(currentStats.meetingTime / 3600)}h</p>
+                                    <CardContent className="p-3 sm:p-4 text-center">
+                                        <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Total Hours</p>
+                                        <p className="text-xl sm:text-3xl font-bold text-green-600 dark:text-green-400">{Math.floor(currentStats.meetingTime / 3600)}h</p>
                                     </CardContent>
                                 </Card>
 
                                 <Card className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-none">
-                                    <CardContent className="p-4 text-center">
-                                        <p className="text-sm text-muted-foreground mb-1">Productivity</p>
-                                        <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                                    <CardContent className="p-3 sm:p-4 text-center">
+                                        <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Status</p>
+                                        <p className="text-xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400">
                                             {completionRate >= 80 ? '🔥' : completionRate >= 50 ? '⭐' : '💪'}
                                         </p>
                                     </CardContent>
                                 </Card>
                             </div>
 
-                            {/* Daily Breakdown Chart */}
+                            {/* Daily Breakdown Chart - Responsive height */}
                             {timeRange === 'week' && chartData.length > 0 && (
                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2">
-                                            <HiCalendar className="w-5 h-5" />
-                                            Weekly Focus Time (Minutes)
+                                    <CardHeader className="pb-2 sm:pb-4">
+                                        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                                            <HiCalendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                                            <span className="hidden sm:inline">Weekly Focus Time (Minutes)</span>
+                                            <span className="sm:hidden">Weekly Focus</span>
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
-                                        <ResponsiveContainer width="100%" height={250}>
+                                    <CardContent className="px-2 sm:px-6">
+                                        <ResponsiveContainer width="100%" height={180}>
                                             <BarChart data={chartData}>
                                                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                                                <XAxis dataKey="date" className="text-xs" />
-                                                <YAxis className="text-xs" />
+                                                <XAxis dataKey="date" className="text-[10px] sm:text-xs" tick={{ fontSize: 10 }} />
+                                                <YAxis className="text-[10px] sm:text-xs" tick={{ fontSize: 10 }} width={30} />
                                                 <Tooltip
                                                     contentStyle={{
                                                         backgroundColor: 'hsl(var(--card))',
-                                                        border: '1px solid hsl(var(--border))'
+                                                        border: '1px solid hsl(var(--border))',
+                                                        fontSize: '12px'
                                                     }}
                                                 />
-                                                <Bar dataKey="time" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                                                <Bar dataKey="time" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </CardContent>
                                 </Card>
                             )}
 
-                            {/* All-Time Summary */}
+                            {/* All-Time Summary - Responsive */}
                             {stats?.total && (
                                 <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-950">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">All-Time Stats</CardTitle>
+                                    <CardHeader className="pb-2 sm:pb-4">
+                                        <CardTitle className="text-sm sm:text-base">All-Time Stats</CardTitle>
                                     </CardHeader>
-                                    <CardContent className="grid grid-cols-3 gap-4 text-center">
+                                    <CardContent className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
                                         <div>
-                                            <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                                            <p className="text-lg sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400">
                                                 {formatTime(stats.total.meetingTime)}
                                             </p>
-                                            <p className="text-sm text-muted-foreground">Total Focus</p>
+                                            <p className="text-[10px] sm:text-sm text-muted-foreground">Total Focus</p>
                                         </div>
                                         <div>
-                                            <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                                            <p className="text-lg sm:text-3xl font-bold text-green-600 dark:text-green-400">
                                                 {stats.total.completed}
                                             </p>
-                                            <p className="text-sm text-muted-foreground">Tasks Done</p>
+                                            <p className="text-[10px] sm:text-sm text-muted-foreground">Tasks Done</p>
                                         </div>
                                         <div>
-                                            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+                                            <p className="text-lg sm:text-3xl font-bold text-amber-600 dark:text-amber-400">
                                                 {Math.round((stats.total.completed / stats.total.tasks) * 100) || 0}%
                                             </p>
-                                            <p className="text-sm text-muted-foreground">Success Rate</p>
+                                            <p className="text-[10px] sm:text-sm text-muted-foreground">Success</p>
                                         </div>
                                     </CardContent>
                                 </Card>

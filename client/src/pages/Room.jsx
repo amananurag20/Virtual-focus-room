@@ -335,24 +335,26 @@ export default function Room() {
     );
 
     return (
-        <div className={`h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'}`}>
-            {/* Guest Banner */}
+        <div className={`h-screen flex flex-col overflow-hidden ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'}`}>
+            {/* Guest Banner - Responsive */}
             {showGuestBanner && isGuest && (
-                <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-3">
-                        <HiEye className="w-5 h-5" />
-                        <p className="text-sm font-medium">
-                            You're viewing as a guest. <span className="opacity-80">Video, audio, and chat are disabled.</span>
+                <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 sm:px-4 py-2 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <HiEye className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                        <p className="text-xs sm:text-sm font-medium truncate">
+                            <span className="hidden sm:inline">You're viewing as a guest. </span>
+                            <span className="sm:hidden">Guest mode</span>
+                            <span className="opacity-80 hidden sm:inline">Video, audio, and chat are disabled.</span>
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                         <Button
                             variant="secondary"
                             size="sm"
-                            className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0"
+                            className="h-6 sm:h-7 text-[10px] sm:text-xs px-2 sm:px-3 bg-white/20 hover:bg-white/30 text-white border-0"
                             onClick={() => navigate('/')}
                         >
-                            Sign Up Free
+                            Sign Up
                         </Button>
                         <button onClick={() => setShowGuestBanner(false)} className="p-1 hover:bg-white/20 rounded">
                             <HiXMark className="w-4 h-4" />
@@ -361,62 +363,64 @@ export default function Room() {
                 </div>
             )}
 
-            {/* Header */}
-            <header className={`h-14 px-5 flex items-center justify-between shrink-0 ${isDark ? '' : 'border-b border-slate-200'}`}>
-                <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                        <HiVideoCamera className="w-4 h-4 text-white" />
+            {/* Header - Responsive */}
+            <header className={`h-12 sm:h-14 px-3 sm:px-5 flex items-center justify-between shrink-0 ${isDark ? '' : 'border-b border-slate-200'}`}>
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+                        <HiVideoCamera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                     </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h1 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{roomInfo?.name || 'Focus Room'}</h1>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                            <h1 className={`font-semibold text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none ${isDark ? 'text-white' : 'text-slate-900'}`}>{roomInfo?.name || 'Focus Room'}</h1>
                             {roomInfo?.isPrivate && (
-                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 text-[10px] font-medium">
-                                    <HiLockClosed className="w-2.5 h-2.5" /> Private
+                                <span className="flex items-center gap-0.5 px-1 sm:px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 text-[8px] sm:text-[10px] font-medium shrink-0">
+                                    <HiLockClosed className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+                                    <span className="hidden sm:inline">Private</span>
                                 </span>
                             )}
                         </div>
-                        <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>{participantCount} online</span>
-                            {isScreenSharing && <><span>•</span><span className="flex items-center gap-1 text-amber-500"><HiComputerDesktop className="w-3 h-3" />Sharing</span></>}
-                            {isGuest && <><span>•</span><span className="flex items-center gap-1 text-amber-500"><HiEye className="w-3 h-3" />View Only</span></>}
+                        <div className={`flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>{participantCount}</span>
+                            {isScreenSharing && <span className="hidden sm:flex items-center gap-1 text-amber-500"><HiComputerDesktop className="w-3 h-3" />Sharing</span>}
+                            {isGuest && <span className="flex items-center gap-1 text-amber-500"><HiEye className="w-3 h-3" /><span className="hidden sm:inline">View Only</span></span>}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* User Tier Badge */}
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                    {/* User Tier Badge - Hidden on mobile */}
                     {isPremium && (
-                        <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-medium">
+                        <span className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-medium">
                             <HiStar className="w-3 h-3" /> Premium
                         </span>
                     )}
 
                     {/* Timer Display (if running) */}
                     {(isTimerRunning || timerSeconds > 0) && (
-                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer ${isDark ? 'bg-slate-800' : 'bg-white border border-slate-200'}`} onClick={() => setIsTimerModalOpen(true)}>
-                            <HiClock className={`w-4 h-4 ${isTimerRunning ? 'text-green-500' : 'text-slate-400'}`} />
-                            <span className={`font-mono text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatTime(timerSeconds)}</span>
-                            <button onClick={(e) => { e.stopPropagation(); toggleTimer(); }} className={`w-6 h-6 rounded-md flex items-center justify-center ${isTimerRunning ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}`}>
-                                {isTimerRunning ? <HiPause className="w-3 h-3" /> : <HiPlay className="w-3 h-3" />}
+                        <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl cursor-pointer ${isDark ? 'bg-slate-800' : 'bg-white border border-slate-200'}`} onClick={() => setIsTimerModalOpen(true)}>
+                            <HiClock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isTimerRunning ? 'text-green-500' : 'text-slate-400'}`} />
+                            <span className={`font-mono text-xs sm:text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatTime(timerSeconds)}</span>
+                            <button onClick={(e) => { e.stopPropagation(); toggleTimer(); }} className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md flex items-center justify-center ${isTimerRunning ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}`}>
+                                {isTimerRunning ? <HiPause className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <HiPlay className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                             </button>
                         </div>
                     )}
 
-                    <Button variant={isTodoOpen ? 'default' : 'outline'} size="sm" onClick={toggleTasksPanel} className="gap-2">
+                    {/* Header buttons - responsive sizing */}
+                    <Button variant={isTodoOpen ? 'default' : 'outline'} size="sm" onClick={toggleTasksPanel} className="h-8 sm:h-9 px-2 sm:px-3 gap-1 sm:gap-2">
                         <HiClipboardDocumentList className="w-4 h-4" />
-                        <span className="hidden sm:inline">Tasks</span>
-                        {todos.filter(t => !t.isCompleted).length > 0 && <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-bold">{todos.filter(t => !t.isCompleted).length}</span>}
+                        <span className="hidden lg:inline">Tasks</span>
+                        {todos.filter(t => !t.isCompleted).length > 0 && <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-500 text-white text-[8px] sm:text-[10px] flex items-center justify-center font-bold">{todos.filter(t => !t.isCompleted).length}</span>}
                     </Button>
 
-                    <Button variant="outline" size="sm" onClick={() => setIsTimerModalOpen(true)} className="gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsTimerModalOpen(true)} className="h-8 sm:h-9 px-2 sm:px-3 gap-1 sm:gap-2 hidden sm:flex">
                         <HiClock className="w-4 h-4" />
-                        <span className="hidden sm:inline">Timer</span>
+                        <span className="hidden lg:inline">Timer</span>
                     </Button>
 
-                    <Button variant={isAmbientOpen ? 'default' : 'outline'} size="sm" onClick={() => setIsAmbientOpen(!isAmbientOpen)} className="gap-2">
+                    <Button variant={isAmbientOpen ? 'default' : 'outline'} size="sm" onClick={() => setIsAmbientOpen(!isAmbientOpen)} className="h-8 sm:h-9 px-2 sm:px-3 gap-1 sm:gap-2 hidden sm:flex">
                         <HiMusicalNote className="w-4 h-4" />
-                        <span className="hidden sm:inline">Sounds</span>
+                        <span className="hidden lg:inline">Sounds</span>
                     </Button>
                 </div>
             </header>
@@ -464,9 +468,9 @@ export default function Room() {
                 </DialogContent>
             </Dialog>
 
-            {/* Main Content */}
-            <main className="flex-1 flex overflow-hidden">
-                <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
+            {/* Main Content - Responsive */}
+            <main className="flex-1 flex overflow-hidden relative">
+                <div className="flex-1 p-2 sm:p-4 overflow-auto flex items-center justify-center">
                     <VideoGrid
                         localStream={stream}
                         localVideoRef={localVideoRef}
@@ -481,41 +485,53 @@ export default function Room() {
                         isGuest={isGuest}
                     />
                 </div>
-                {isUserListOpen && <UserList participants={participants} username={username} socketId={socket?.id} onPingUser={handlePingUser} onClose={() => setIsUserListOpen(false)} />}
-                {isChatOpen && <ChatPanel messages={messages} currentSocketId={socket?.id} onSendMessage={handleSendMessage} onClose={() => setIsChatOpen(false)} />}
+
+                {/* Side panels - Full screen overlay on mobile, side panel on desktop */}
+                {isUserListOpen && (
+                    <div className="absolute inset-0 z-20 sm:relative sm:inset-auto">
+                        <UserList participants={participants} username={username} socketId={socket?.id} onPingUser={handlePingUser} onClose={() => setIsUserListOpen(false)} />
+                    </div>
+                )}
+                {isChatOpen && (
+                    <div className="absolute inset-0 z-20 sm:relative sm:inset-auto">
+                        <ChatPanel messages={messages} currentSocketId={socket?.id} onSendMessage={handleSendMessage} onClose={() => setIsChatOpen(false)} />
+                    </div>
+                )}
                 {isTodoOpen && (
-                    <Card className="w-80 h-full border-l rounded-none flex flex-col">
-                        <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
-                            <CardTitle className="text-base font-semibold">My Tasks</CardTitle>
-                            <Button variant="ghost" size="icon" onClick={() => setIsTodoOpen(false)} className="h-8 w-8 rounded-full"><HiXMark className="w-5 h-5" /></Button>
-                        </CardHeader>
-                        <CardContent className="flex-1 p-3 overflow-y-auto">
-                            <form onSubmit={addTodo} className="flex gap-2 mb-4">
-                                <Input value={newTodo} onChange={(e) => setNewTodo(e.target.value)} placeholder="Add a task..." className="flex-1" />
-                                <Button type="submit" size="icon"><HiPlus className="w-4 h-4" /></Button>
-                            </form>
-                            <div className="space-y-2">
-                                {todos.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">No tasks yet.</p> : todos.map(todo => (
-                                    <div key={todo._id} className={`flex items-center gap-3 p-3 rounded-lg border ${todo.isCompleted ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
-                                        <button onClick={() => toggleTodoDone(todo._id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${todo.isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>{todo.isCompleted && <HiCheck className="w-3 h-3" />}</button>
-                                        <span className={`flex-1 text-sm ${todo.isCompleted ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
-                                        <button onClick={() => deleteTodo(todo._id)} className="text-muted-foreground hover:text-destructive"><HiXMark className="w-4 h-4" /></button>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="absolute inset-0 z-20 sm:relative sm:inset-auto">
+                        <Card className="w-full sm:w-80 h-full border-l rounded-none flex flex-col bg-card">
+                            <CardHeader className="flex flex-row items-center justify-between py-3 sm:py-4 border-b shrink-0">
+                                <CardTitle className="text-base font-semibold">My Tasks</CardTitle>
+                                <Button variant="ghost" size="icon" onClick={() => setIsTodoOpen(false)} className="h-8 w-8 rounded-full"><HiXMark className="w-5 h-5" /></Button>
+                            </CardHeader>
+                            <CardContent className="flex-1 p-3 overflow-y-auto">
+                                <form onSubmit={addTodo} className="flex gap-2 mb-4">
+                                    <Input value={newTodo} onChange={(e) => setNewTodo(e.target.value)} placeholder="Add a task..." className="flex-1 h-10" />
+                                    <Button type="submit" size="icon" className="h-10 w-10"><HiPlus className="w-4 h-4" /></Button>
+                                </form>
+                                <div className="space-y-2">
+                                    {todos.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">No tasks yet.</p> : todos.map(todo => (
+                                        <div key={todo._id} className={`flex items-center gap-3 p-3 rounded-lg border ${todo.isCompleted ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
+                                            <button onClick={() => toggleTodoDone(todo._id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${todo.isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>{todo.isCompleted && <HiCheck className="w-3 h-3" />}</button>
+                                            <span className={`flex-1 text-sm ${todo.isCompleted ? 'line-through text-muted-foreground' : ''}`}>{todo.text}</span>
+                                            <button onClick={() => deleteTodo(todo._id)} className="text-muted-foreground hover:text-destructive"><HiXMark className="w-4 h-4" /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 )}
             </main>
 
-            {/* Control Bar */}
-            <footer className="py-4 flex items-center justify-center shrink-0">
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark ? 'bg-slate-800/90 border-white/10' : 'bg-white/90 border-slate-200'}`}>
+            {/* Control Bar - Responsive */}
+            <footer className="py-2 sm:py-4 flex items-center justify-center shrink-0 px-2 sm:px-0">
+                <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark ? 'bg-slate-800/90 border-white/10' : 'bg-white/90 border-slate-200'}`}>
                     {/* Audio Control */}
                     {permissions.canToggleAudio ? (
                         <button
                             onClick={handleToggleAudio}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                             title={isAudioOn ? 'Mute' : 'Unmute'}
                         >
                             <IconWithSlash Icon={HiMicrophone} isOff={!isAudioOn} />
@@ -528,7 +544,7 @@ export default function Room() {
                     {permissions.canToggleVideo ? (
                         <button
                             onClick={handleToggleVideo}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                             title={isVideoOn ? 'Camera off' : 'Camera on'}
                         >
                             <IconWithSlash Icon={HiVideoCamera} isOff={!isVideoOn} />
@@ -537,50 +553,52 @@ export default function Room() {
                         <LockedControl Icon={HiVideoCamera} label="Camera" onClick={() => showRestrictionToast('Camera')} />
                     )}
 
-                    {/* Screen Share Control */}
-                    {permissions.canShareScreen ? (
-                        <button
-                            onClick={handleToggleScreenShare}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isScreenSharing ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
-                            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
-                        >
-                            {isScreenSharing ? <HiStopCircle className="w-5 h-5" /> : <HiComputerDesktop className="w-5 h-5" />}
-                        </button>
-                    ) : (
-                        <LockedControl Icon={HiComputerDesktop} label="Screen sharing" onClick={() => showRestrictionToast('Screen sharing')} />
-                    )}
+                    {/* Screen Share Control - Hidden on very small screens */}
+                    <div className="hidden xs:block">
+                        {permissions.canShareScreen ? (
+                            <button
+                                onClick={handleToggleScreenShare}
+                                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isScreenSharing ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                                title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+                            >
+                                {isScreenSharing ? <HiStopCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : <HiComputerDesktop className="w-4 h-4 sm:w-5 sm:h-5" />}
+                            </button>
+                        ) : (
+                            <LockedControl Icon={HiComputerDesktop} label="Screen sharing" onClick={() => showRestrictionToast('Screen sharing')} />
+                        )}
+                    </div>
 
-                    <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
+                    <div className={`w-px h-5 sm:h-6 mx-0.5 sm:mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
 
                     {/* Participants */}
                     <button
                         onClick={toggleUserList}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
                         title="Participants"
                     >
-                        <HiUserGroup className="w-5 h-5" />
+                        <HiUserGroup className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
 
                     {/* Chat Control */}
                     <button
                         onClick={toggleChat}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
                         title="Chat"
                     >
-                        <HiChatBubbleLeftRight className="w-5 h-5" />
-                        {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] flex items-center justify-center font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                        <HiChatBubbleLeftRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                        {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500 text-[8px] sm:text-[10px] flex items-center justify-center font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
                         {!permissions.canChat && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
-                                <HiEye className="w-2.5 h-2.5 text-white" />
+                            <div className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                                <HiEye className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
                             </div>
                         )}
                     </button>
 
-                    <div className={`w-px h-6 mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
+                    <div className={`w-px h-5 sm:h-6 mx-0.5 sm:mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
 
                     {/* Leave Button */}
-                    <button onClick={handleLeaveRoom} className="h-11 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2">
-                        <HiPhone className="w-4 h-4 rotate-[135deg]" /><span className="text-sm">Leave</span>
+                    <button onClick={handleLeaveRoom} className="h-10 sm:h-11 px-3 sm:px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-1.5 sm:gap-2">
+                        <HiPhone className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-[135deg]" /><span className="text-xs sm:text-sm">Leave</span>
                     </button>
                 </div>
             </footer>
