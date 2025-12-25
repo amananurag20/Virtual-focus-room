@@ -18,7 +18,17 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const handleSubmit = (e) => {
+    // Convert file to base64
+    const fileToBase64 = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+        });
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Check permissions
@@ -29,19 +39,28 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
 
         if (!message.trim() && attachments.length === 0) return;
 
-        // Build message with attachments
-        const messageData = {
-            text: message.trim(),
-            attachments: attachments.map(att => ({
-                name: att.name,
-                type: att.type,
-                size: att.size,
-                url: att.url || att.preview,
-                file: att.file
-            }))
-        };
+        // Convert attachments to base64 for socket transmission
+        const processedAttachments = await Promise.all(
+            attachments.map(async (att) => {
+                let base64Data = null;
+                if (att.file) {
+                    try {
+                        base64Data = await fileToBase64(att.file);
+                    } catch (err) {
+                        console.error('Failed to convert file:', err);
+                    }
+                }
+                return {
+                    name: att.name,
+                    type: att.type,
+                    size: att.size,
+                    isImage: att.isImage,
+                    url: base64Data || att.preview // Use base64 data for transmission
+                };
+            })
+        );
 
-        onSendMessage(message.trim(), messageData.attachments);
+        onSendMessage(message.trim(), processedAttachments);
         setMessage('');
         setAttachments([]);
         setShowAttachMenu(false);
@@ -96,14 +115,22 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
     };
 
     const renderAttachment = (att, isOwn = false) => {
-        if (att.isImage || att.type?.startsWith('image/')) {
+        // Check if it's an image - use url (base64) or preview (local blob)
+        const imageUrl = att.url || att.preview;
+        const isImageType = att.isImage || att.type?.startsWith('image/');
+
+        if (isImageType && imageUrl) {
             return (
                 <div className="mt-2 rounded-lg overflow-hidden max-w-[150px] sm:max-w-[200px]">
                     <img
-                        src={att.preview || att.url}
+                        src={imageUrl}
                         alt={att.name}
                         className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(att.preview || att.url, '_blank')}
+                        onClick={() => window.open(imageUrl, '_blank')}
+                        onError={(e) => {
+                            // If image fails to load, show placeholder
+                            e.target.style.display = 'none';
+                        }}
                     />
                 </div>
             );

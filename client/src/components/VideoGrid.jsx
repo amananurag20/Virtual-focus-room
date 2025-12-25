@@ -20,10 +20,10 @@ export default function VideoGrid({
     const participantList = Object.values(participants);
     const totalParticipants = participantList.length + 1;
 
-    // Calculate dynamic sizing for video players
+    // Calculate dynamic sizing for video players based on screen and participant count
     const getVideoSize = (isPinned = false) => {
         if (isPinned) return 'extra-large';
-        if (pinnedUser) return 'compact'; // Others are smaller when someone is pinned
+        if (pinnedUser) return 'compact';
         if (totalParticipants === 1) return 'extra-large';
         if (totalParticipants === 2) return 'large';
         if (totalParticipants <= 4) return 'medium-large';
@@ -37,13 +37,12 @@ export default function VideoGrid({
         const isLocalPinned = pinnedUser.isLocal;
         const pinnedParticipant = isLocalPinned ? null : participantList.find(p => p.socketId === pinnedUser.socketId);
 
-        // Get unpinned participants (everyone except the pinned one)
         const unpinnedParticipants = isLocalPinned
             ? participantList
             : participantList.filter(p => p.socketId !== pinnedUser.socketId);
 
         return (
-            <div className="flex flex-col gap-3 w-full max-w-7xl mx-auto p-2 sm:p-0">
+            <div className="flex flex-col gap-2 sm:gap-3 w-full max-w-7xl mx-auto px-1 sm:px-2">
                 {/* Pinned Video - Large at top */}
                 <div className="w-full max-w-4xl mx-auto">
                     {isLocalPinned ? (
@@ -82,10 +81,9 @@ export default function VideoGrid({
 
                 {/* Unpinned Videos - Horizontal scrollable strip at bottom */}
                 {(unpinnedParticipants.length > 0 || !isLocalPinned) && (
-                    <div className="flex gap-2 overflow-x-auto pb-2 px-1">
-                        {/* Show local video if not pinned */}
+                    <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 px-1 scrollbar-thin">
                         {!isLocalPinned && (
-                            <div className="shrink-0 w-32 sm:w-40 md:w-48">
+                            <div className="shrink-0 w-24 xs:w-28 sm:w-36 md:w-44">
                                 <VideoPlayer
                                     videoRef={localVideoRef}
                                     stream={localStream}
@@ -102,9 +100,8 @@ export default function VideoGrid({
                                 />
                             </div>
                         )}
-                        {/* Show unpinned participants */}
                         {unpinnedParticipants.map((participant) => (
-                            <div key={participant.socketId} className="shrink-0 w-32 sm:w-40 md:w-48">
+                            <div key={participant.socketId} className="shrink-0 w-24 xs:w-28 sm:w-36 md:w-44">
                                 <VideoPlayer
                                     stream={remoteStreams[participant.socketId]}
                                     username={participant.username || 'Anonymous'}
@@ -130,9 +127,9 @@ export default function VideoGrid({
     // Special layout for 3 participants (2 on top, 1 centered bottom)
     if (totalParticipants === 3) {
         return (
-            <div className="flex flex-col gap-3 sm:gap-4 max-w-5xl w-full mx-auto p-2 sm:p-0">
+            <div className="flex flex-col gap-2 sm:gap-3 max-w-5xl w-full mx-auto px-1 sm:px-2">
                 {/* First row - 2 videos */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     <VideoPlayer
                         videoRef={localVideoRef}
                         stream={localStream}
@@ -165,7 +162,7 @@ export default function VideoGrid({
                 </div>
                 {/* Second row - 1 centered video */}
                 <div className="flex justify-center">
-                    <div className="w-1/2 min-w-[280px] max-w-[400px]">
+                    <div className="w-1/2 min-w-[160px] max-w-[400px]">
                         {participantList[1] && (
                             <VideoPlayer
                                 key={participantList[1].socketId}
@@ -193,53 +190,53 @@ export default function VideoGrid({
         if (totalParticipants === 1) {
             return {
                 className: 'grid-cols-1',
-                maxWidth: 'max-w-3xl',
-                gap: 'gap-4',
-                containerClass: 'h-[70vh] max-h-[600px]'
+                maxWidth: 'max-w-md sm:max-w-xl md:max-w-2xl lg:max-w-3xl',
+                gap: 'gap-2 sm:gap-4',
+                containerClass: 'min-h-[50vh] sm:min-h-[60vh] md:h-[70vh] md:max-h-[600px]'
             };
         }
         if (totalParticipants === 2) {
             return {
-                className: 'grid-cols-1 md:grid-cols-2',
-                maxWidth: 'max-w-6xl',
-                gap: 'gap-4',
-                containerClass: 'h-[60vh] max-h-[500px]'
+                className: 'grid-cols-1 sm:grid-cols-2',
+                maxWidth: 'max-w-md sm:max-w-4xl md:max-w-5xl lg:max-w-6xl',
+                gap: 'gap-2 sm:gap-3 md:gap-4',
+                containerClass: 'min-h-[40vh] sm:min-h-[50vh] md:h-[60vh] md:max-h-[500px]'
             };
         }
         if (totalParticipants === 4) {
             return {
                 className: 'grid-cols-2',
-                maxWidth: 'max-w-4xl',
-                gap: 'gap-3',
+                maxWidth: 'max-w-sm sm:max-w-2xl md:max-w-3xl lg:max-w-4xl',
+                gap: 'gap-1.5 sm:gap-2 md:gap-3',
                 containerClass: 'h-auto'
             };
         }
         if (totalParticipants <= 6) {
             return {
-                className: 'grid-cols-2 sm:grid-cols-3',
-                maxWidth: 'max-w-5xl',
-                gap: 'gap-2',
+                className: 'grid-cols-2 md:grid-cols-3',
+                maxWidth: 'max-w-sm sm:max-w-3xl md:max-w-4xl lg:max-w-5xl',
+                gap: 'gap-1.5 sm:gap-2',
                 containerClass: 'h-auto'
             };
         }
         if (totalParticipants <= 9) {
             return {
                 className: 'grid-cols-2 sm:grid-cols-3',
-                maxWidth: 'max-w-5xl',
-                gap: 'gap-2',
+                maxWidth: 'max-w-sm sm:max-w-3xl md:max-w-4xl lg:max-w-5xl',
+                gap: 'gap-1 sm:gap-1.5 md:gap-2',
                 containerClass: 'h-auto'
             };
         }
         if (totalParticipants <= 12) {
             return {
                 className: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
-                maxWidth: 'max-w-6xl',
-                gap: 'gap-1.5',
+                maxWidth: 'max-w-sm sm:max-w-4xl md:max-w-5xl lg:max-w-6xl',
+                gap: 'gap-1 sm:gap-1.5',
                 containerClass: 'h-auto'
             };
         }
         return {
-            className: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
+            className: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5',
             maxWidth: 'max-w-full',
             gap: 'gap-1',
             containerClass: 'h-auto'
@@ -253,7 +250,7 @@ export default function VideoGrid({
                 ${gridConfig.maxWidth} w-full mx-auto
                 ${gridConfig.containerClass}
                 transition-all duration-300 ease-out
-                p-2 sm:p-0
+                px-1 sm:px-2
             `}
         >
             <VideoPlayer

@@ -544,14 +544,14 @@ export default function Room() {
                 )}
             </main>
 
-            {/* Control Bar - Responsive */}
-            <footer className="py-2 sm:py-4 flex items-center justify-center shrink-0 px-2 sm:px-0">
-                <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark ? 'bg-slate-800/90 border-white/10' : 'bg-white/90 border-slate-200'}`}>
+            {/* Control Bar - Mobile Optimized */}
+            <footer className="py-2 sm:py-3 md:py-4 flex items-center justify-center shrink-0 px-1.5 sm:px-2 safe-area-pb">
+                <div className={`flex items-center gap-0.5 xs:gap-1 sm:gap-2 px-1.5 xs:px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl backdrop-blur-xl border shadow-2xl ${isDark ? 'bg-slate-800/90 border-white/10' : 'bg-white/90 border-slate-200'}`}>
                     {/* Audio Control */}
                     {permissions.canToggleAudio ? (
                         <button
                             onClick={handleToggleAudio}
-                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                            className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all active:scale-95 ${isAudioOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                             title={isAudioOn ? 'Mute' : 'Unmute'}
                         >
                             <IconWithSlash Icon={HiMicrophone} isOff={!isAudioOn} />
@@ -564,7 +564,7 @@ export default function Room() {
                     {permissions.canToggleVideo ? (
                         <button
                             onClick={handleToggleVideo}
-                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                            className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all active:scale-95 ${isVideoOn ? isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                             title={isVideoOn ? 'Camera off' : 'Camera on'}
                         >
                             <IconWithSlash Icon={HiVideoCamera} isOff={!isVideoOn} />
@@ -574,11 +574,11 @@ export default function Room() {
                     )}
 
                     {/* Screen Share Control - Hidden on very small screens */}
-                    <div className="hidden xs:block">
+                    <div className="hidden sm:block">
                         {permissions.canShareScreen ? (
                             <button
                                 onClick={handleToggleScreenShare}
-                                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isScreenSharing ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                                className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all active:scale-95 ${isScreenSharing ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
                                 title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
                             >
                                 {isScreenSharing ? <HiStopCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : <HiComputerDesktop className="w-4 h-4 sm:w-5 sm:h-5" />}
@@ -593,7 +593,7 @@ export default function Room() {
                     {/* Participants */}
                     <button
                         onClick={toggleUserList}
-                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                        className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all active:scale-95 ${isUserListOpen ? 'bg-sky-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
                         title="Participants"
                     >
                         <HiUserGroup className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -602,7 +602,7 @@ export default function Room() {
                     {/* Chat Control */}
                     <button
                         onClick={toggleChat}
-                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                        className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all active:scale-95 relative ${isChatOpen ? 'bg-emerald-500 text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
                         title="Chat"
                     >
                         <HiChatBubbleLeftRight className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -617,8 +617,8 @@ export default function Room() {
                     <div className={`w-px h-5 sm:h-6 mx-0.5 sm:mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
 
                     {/* Leave Button */}
-                    <button onClick={handleLeaveRoom} className="h-10 sm:h-11 px-3 sm:px-5 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-1.5 sm:gap-2">
-                        <HiPhone className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-[135deg]" /><span className="text-xs sm:text-sm">Leave</span>
+                    <button onClick={handleLeaveRoom} className="h-9 sm:h-10 md:h-11 px-2.5 sm:px-4 md:px-5 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 text-white font-medium flex items-center gap-1 sm:gap-1.5 md:gap-2 transition-transform">
+                        <HiPhone className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-[135deg]" /><span className="text-[11px] sm:text-xs md:text-sm">Leave</span>
                     </button>
                 </div>
             </footer>
