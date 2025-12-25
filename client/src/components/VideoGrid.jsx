@@ -124,12 +124,15 @@ export default function VideoGrid({
         );
     }
 
-    // Special layout for 3 participants (2 on top, 1 centered bottom)
+    // Special layout for 3 participants 
+    // Mobile: vertical scroll, Tablet+: 2 on top, 1 centered bottom
     if (totalParticipants === 3) {
         return (
             <div className="flex flex-col gap-2 sm:gap-3 max-w-5xl w-full mx-auto px-1 sm:px-2">
-                {/* First row - 2 videos */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                {/* Mobile: All 3 in vertical list | Desktop: 2+1 grid */}
+
+                {/* On mobile (< 640px): Show all 3 videos in a single column */}
+                <div className="flex flex-col gap-2 sm:hidden">
                     <VideoPlayer
                         videoRef={localVideoRef}
                         stream={localStream}
@@ -139,46 +142,82 @@ export default function VideoGrid({
                         isVideoOn={isLocalVideoOn || isScreenSharing}
                         isScreenSharing={isScreenSharing}
                         isGuest={isGuest}
-                        size={getVideoSize()}
+                        size="medium"
                         totalParticipants={totalParticipants}
                         onPin={() => onPinUser(localSocketId, username, true)}
                     />
-                    {participantList[0] && (
+                    {participantList.map((participant) => (
                         <VideoPlayer
-                            key={participantList[0].socketId}
-                            stream={remoteStreams[participantList[0].socketId]}
-                            username={participantList[0].username || 'Anonymous'}
+                            key={participant.socketId}
+                            stream={remoteStreams[participant.socketId]}
+                            username={participant.username || 'Anonymous'}
                             isLocal={false}
-                            isAudioOn={participantList[0].isAudioOn}
-                            isVideoOn={participantList[0].isVideoOn}
-                            isPinged={pingTarget?.socketId === participantList[0].socketId}
-                            onPing={() => onPingUser(participantList[0].socketId)}
-                            userTier={participantList[0].userTier}
+                            isAudioOn={participant.isAudioOn}
+                            isVideoOn={participant.isVideoOn}
+                            isPinged={pingTarget?.socketId === participant.socketId}
+                            onPing={() => onPingUser(participant.socketId)}
+                            userTier={participant.userTier}
+                            size="medium"
+                            totalParticipants={totalParticipants}
+                            onPin={() => onPinUser(participant.socketId, participant.username)}
+                        />
+                    ))}
+                </div>
+
+                {/* On larger screens (>= 640px): 2+1 layout */}
+                <div className="hidden sm:flex sm:flex-col gap-2 sm:gap-3">
+                    {/* First row - 2 videos */}
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                        <VideoPlayer
+                            videoRef={localVideoRef}
+                            stream={localStream}
+                            username={username}
+                            isLocal={true}
+                            isAudioOn={isLocalAudioOn}
+                            isVideoOn={isLocalVideoOn || isScreenSharing}
+                            isScreenSharing={isScreenSharing}
+                            isGuest={isGuest}
                             size={getVideoSize()}
                             totalParticipants={totalParticipants}
-                            onPin={() => onPinUser(participantList[0].socketId, participantList[0].username)}
+                            onPin={() => onPinUser(localSocketId, username, true)}
                         />
-                    )}
-                </div>
-                {/* Second row - 1 centered video */}
-                <div className="flex justify-center">
-                    <div className="w-1/2 min-w-[160px] max-w-[400px]">
-                        {participantList[1] && (
+                        {participantList[0] && (
                             <VideoPlayer
-                                key={participantList[1].socketId}
-                                stream={remoteStreams[participantList[1].socketId]}
-                                username={participantList[1].username || 'Anonymous'}
+                                key={participantList[0].socketId}
+                                stream={remoteStreams[participantList[0].socketId]}
+                                username={participantList[0].username || 'Anonymous'}
                                 isLocal={false}
-                                isAudioOn={participantList[1].isAudioOn}
-                                isVideoOn={participantList[1].isVideoOn}
-                                isPinged={pingTarget?.socketId === participantList[1].socketId}
-                                onPing={() => onPingUser(participantList[1].socketId)}
-                                userTier={participantList[1].userTier}
+                                isAudioOn={participantList[0].isAudioOn}
+                                isVideoOn={participantList[0].isVideoOn}
+                                isPinged={pingTarget?.socketId === participantList[0].socketId}
+                                onPing={() => onPingUser(participantList[0].socketId)}
+                                userTier={participantList[0].userTier}
                                 size={getVideoSize()}
                                 totalParticipants={totalParticipants}
-                                onPin={() => onPinUser(participantList[1].socketId, participantList[1].username)}
+                                onPin={() => onPinUser(participantList[0].socketId, participantList[0].username)}
                             />
                         )}
+                    </div>
+                    {/* Second row - 1 centered video */}
+                    <div className="flex justify-center">
+                        <div className="w-1/2 min-w-[180px] max-w-[400px]">
+                            {participantList[1] && (
+                                <VideoPlayer
+                                    key={participantList[1].socketId}
+                                    stream={remoteStreams[participantList[1].socketId]}
+                                    username={participantList[1].username || 'Anonymous'}
+                                    isLocal={false}
+                                    isAudioOn={participantList[1].isAudioOn}
+                                    isVideoOn={participantList[1].isVideoOn}
+                                    isPinged={pingTarget?.socketId === participantList[1].socketId}
+                                    onPing={() => onPingUser(participantList[1].socketId)}
+                                    userTier={participantList[1].userTier}
+                                    size={getVideoSize()}
+                                    totalParticipants={totalParticipants}
+                                    onPin={() => onPinUser(participantList[1].socketId, participantList[1].username)}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

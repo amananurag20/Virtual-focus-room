@@ -86,9 +86,12 @@ app.get("/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Initialize Socket.io
+// Initialize Socket.io with increased buffer size for file transfers
 const io = new Server(server, {
-    cors: corsOptions
+    cors: corsOptions,
+    maxHttpBufferSize: 10 * 1024 * 1024, // 10MB for image sharing
+    pingTimeout: 60000,
+    pingInterval: 25000
 });
 
 // Socket connection handler

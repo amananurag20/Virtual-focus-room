@@ -335,16 +335,16 @@ export default function Room() {
         </div>
     );
 
-    // Locked icon for guests
+    // Locked icon for guests - shows feature is disabled
     const LockedControl = ({ Icon, label, onClick }) => (
         <button
             onClick={onClick}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all relative ${isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-300 text-slate-400'}`}
+            className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all relative cursor-not-allowed ${isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-300 text-slate-400'}`}
             title={`${label} (Sign up required)`}
         >
-            <Icon className="w-5 h-5 opacity-50" />
-            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
-                <HiLockClosed className="w-2.5 h-2.5 text-white" />
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 opacity-50" />
+            <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                <HiLockClosed className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
             </div>
         </button>
     );
@@ -573,7 +573,7 @@ export default function Room() {
                         <LockedControl Icon={HiVideoCamera} label="Camera" onClick={() => showRestrictionToast('Camera')} />
                     )}
 
-                    {/* Screen Share Control - Hidden on very small screens */}
+                    {/* Screen Share Control - Visible on all screens, disabled for guests */}
                     <div className="hidden sm:block">
                         {permissions.canShareScreen ? (
                             <button

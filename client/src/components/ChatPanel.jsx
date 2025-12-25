@@ -121,17 +121,23 @@ export default function ChatPanel({ messages, currentSocketId, onSendMessage, on
 
         if (isImageType && imageUrl) {
             return (
-                <div className="mt-2 rounded-lg overflow-hidden max-w-[150px] sm:max-w-[200px]">
+                <div className="mt-2 rounded-lg overflow-hidden max-w-[150px] sm:max-w-[200px] bg-muted/50">
                     <img
                         src={imageUrl}
                         alt={att.name}
                         className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() => window.open(imageUrl, '_blank')}
                         onError={(e) => {
-                            // If image fails to load, show placeholder
+                            // Replace with filename if image fails
+                            e.target.onerror = null;
                             e.target.style.display = 'none';
+                            e.target.nextElementSibling.style.display = 'flex';
                         }}
                     />
+                    <div className="hidden items-center gap-2 p-2 text-xs text-muted-foreground">
+                        <span>📷</span>
+                        <span className="truncate">{att.name}</span>
+                    </div>
                 </div>
             );
         }
