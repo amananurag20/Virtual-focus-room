@@ -32,6 +32,8 @@ import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth, USER_TIERS } from '@/context/AuthContext';
 import CalendarModal from '@/components/CalendarModal';
+import ProfileModal from '@/components/ProfileModal';
+import MembersSidebar from '@/components/MembersSidebar';
 
 // Shadcn/ui components
 import { Button } from '@/components/ui/button';
@@ -59,6 +61,9 @@ export default function Home() {
     const [paymentProcessing, setPaymentProcessing] = useState(false);
     const [activeUsers, setActiveUsers] = useState(247);
     const [calendarOpen, setCalendarOpen] = useState(false);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [isMembersSidebarOpen, setIsMembersSidebarOpen] = useState(false);
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
 
     // Auth form states
     const [authEmail, setAuthEmail] = useState('');
@@ -283,16 +288,49 @@ export default function Home() {
                                     </Button>
                                 )}
                                 <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l">
-                                    <div className="flex items-center gap-2">
-                                        <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-primary/20">
-                                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs sm:text-sm font-bold">
-                                                {user?.name?.charAt(0).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-sm font-medium hidden md:block">{user?.name}</span>
+                                    <div className="relative">
+                                        <button
+                                            className="flex items-center gap-2 focus:outline-none"
+                                            onClick={() => setShowProfileMenu(!showProfileMenu)}
+                                        >
+                                            <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-primary/20">
+                                                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs sm:text-sm font-bold">
+                                                    {user?.name?.charAt(0).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm font-medium hidden md:block">{user?.name}</span>
+                                        </button>
+
+                                        {/* Dropdown */}
+                                        {showProfileMenu && (
+                                            <div className="absolute top-full right-0 mt-2 w-48 bg-card border rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-200">
+                                                <div className="px-4 py-2 border-b">
+                                                    <p className="font-medium text-sm truncate">{user?.name}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                                                </div>
+                                                <button
+                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-accent flex items-center gap-2 transition-colors"
+                                                    onClick={() => { setIsProfileModalOpen(true); setShowProfileMenu(false); }}
+                                                >
+                                                    <HiUser className="w-4 h-4" /> Profile
+                                                </button>
+                                                <button
+                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-500 flex items-center gap-2 transition-colors"
+                                                    onClick={() => { setShowProfileMenu(false); logout(); }}
+                                                >
+                                                    <HiArrowRightOnRectangle className="w-4 h-4" /> Logout
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Overlay to close menu */}
+                                        {showProfileMenu && (
+                                            <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)}></div>
+                                        )}
                                     </div>
-                                    <Button variant="ghost" size="icon" onClick={logout} title="Logout" className="rounded-full h-8 w-8 sm:h-9 sm:w-9">
-                                        <HiArrowRightOnRectangle className="w-4 h-4 sm:w-5 sm:h-5" />
+
+                                    <Button variant="ghost" size="icon" onClick={() => setIsMembersSidebarOpen(true)} title="Members" className="rounded-full h-8 w-8 sm:h-9 sm:w-9">
+                                        <HiUsers className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                                     </Button>
                                 </div>
                             </div>
@@ -742,6 +780,8 @@ export default function Home() {
 
             {/* Calendar Modal */}
             <CalendarModal isOpen={calendarOpen} onClose={() => setCalendarOpen(false)} />
+            <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+            <MembersSidebar isOpen={isMembersSidebarOpen} onClose={() => setIsMembersSidebarOpen(false)} />
 
             {/* Auth and Pricing Dialogs (Unchanged in logic, just re-rendering) */}
             <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>

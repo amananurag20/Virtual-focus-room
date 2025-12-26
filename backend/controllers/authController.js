@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_this';
 
 // Generate JWT Token
 const generateToken = (id) => {
-    return jwt.sign({ id }, JWT_SECRET, { expiresIn: '30d' });
+    return jwt.sign({ id }, JWT_SECRET, { expiresIn: '7d' });
 };
 
 // @desc    Register new user
@@ -123,6 +123,49 @@ exports.upgradeToPremium = async (req, res) => {
             res.status(404).json({ success: false, message: 'User not found' });
         }
     } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+exports.updateProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        const { name, password, newPassword } = req.body;
+
+        if (user) {
+            user.name = name || user.name;
+
+            if (newPassword && password) {
+                // Verify old password
+                const isMatch = await bcrypt.compare(password, user.password);
+                if (!isMatch) {
+                    return res.status(400).json({ success: false, message: 'Invalid current password' });
+                }
+
+                // Set new password
+                const salt = await bcrypt.genSalt(10);
+                user.password = await bcrypt.hash(newPassword, salt);
+            }
+
+            const updatedUser = await user.save();
+
+            res.json({
+                success: true,
+                user: {
+                    _id: updatedUser._id,
+                    name: updatedUser.name,
+                    email: updatedUser.email,
+                    tier: updatedUser.tier,
+                    isPremium: updatedUser.isPremium,
+                    friends: updatedUser.friends
+                }
+            });
+        } else {
+            res.status(404).json({ success: false, message: 'User not found' });
+        }
+    } catch (error) {
+        console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

@@ -80,6 +80,7 @@ app.use('/api/tiers', tierRoutes);
 app.use('/api/todos', todoRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/friends', require('./routes/friendRoutes'));
 
 // Health check endpoint
 app.get("/health", (req, res) => {

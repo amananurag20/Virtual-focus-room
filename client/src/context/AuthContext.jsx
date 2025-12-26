@@ -205,6 +205,28 @@ export function AuthProvider({ children }) {
         }
     };
 
+    // Update Profile
+    const updateProfile = async (userData) => {
+        if (!token) throw new Error('Not authenticated');
+
+        const res = await fetch(`${API_AUTH}/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(userData)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            setUser(data.user);
+            return data.user;
+        } else {
+            throw new Error(data.message || 'Update failed');
+        }
+    };
+
     // Check if user can perform action
     const canPerformAction = (action) => {
         return permissions[action] || false;
@@ -224,6 +246,7 @@ export function AuthProvider({ children }) {
         signup,
         logout,
         upgradeToPremium,
+        updateProfile,
         canPerformAction,
     };
 
