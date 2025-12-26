@@ -24,7 +24,6 @@ import {
     HiLockClosed,
     HiStar,
     HiEye,
-    HiEye,
     HiMusicalNote,
     HiPencil
 } from 'react-icons/hi2';

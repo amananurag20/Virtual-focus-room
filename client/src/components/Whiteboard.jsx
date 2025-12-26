@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { HiTrash, HiPencil, HiX, HiDownload } from 'react-icons/hi2';
+import { HiTrash, HiPencil, HiXMark, HiArrowDownTray } from 'react-icons/hi2';
 
 const COLORS = [
     '#000000', // Black
@@ -198,10 +198,10 @@ const Whiteboard = ({ socket, roomId, onClose, isGuest }) => {
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon" onClick={downloadBoard} title="Save as Image">
-                            <HiDownload className="w-5 h-5 text-gray-600" />
+                            <HiArrowDownTray className="w-5 h-5 text-gray-600" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={onClose}>
-                            <HiX className="w-6 h-6 text-gray-600" />
+                            <HiXMark className="w-6 h-6 text-gray-600" />
                         </Button>
                     </div>
                 </div>
