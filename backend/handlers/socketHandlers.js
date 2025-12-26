@@ -35,6 +35,10 @@ function setupSocketHandlers(io, socket) {
     socket.on("request:send", (data) => handleRequestSend(socket, data));
     socket.on("request:respond", (data) => handleRequestRespond(socket, data));
 
+    // Whiteboard events
+    socket.on("whiteboard:draw", (data) => handleWhiteboardDraw(socket, data));
+    socket.on("whiteboard:clear", (data) => handleWhiteboardClear(socket, data));
+
     // Disconnect
     socket.on("disconnect", () => handleDisconnect(io, socket));
 }
@@ -277,6 +281,26 @@ function handleDisconnect(io, socket) {
         socket.to(user.roomId).emit("user:left", { socketId: socket.id });
         roomManager.removeUserFromRoom(socket.id);
         io.emit("rooms:list", roomManager.getAllRooms());
+    }
+}
+
+/**
+ * Handle whiteboard draw event
+ */
+function handleWhiteboardDraw(socket, data) {
+    const user = roomManager.getUser(socket.id);
+    if (user) {
+        socket.to(user.roomId).emit("whiteboard:draw", data);
+    }
+}
+
+/**
+ * Handle whiteboard clear event
+ */
+function handleWhiteboardClear(socket, data) {
+    const user = roomManager.getUser(socket.id);
+    if (user) {
+        socket.to(user.roomId).emit("whiteboard:clear");
     }
 }
 

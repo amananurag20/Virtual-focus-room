@@ -24,8 +24,11 @@ import {
     HiLockClosed,
     HiStar,
     HiEye,
-    HiMusicalNote
+    HiEye,
+    HiMusicalNote,
+    HiPencil
 } from 'react-icons/hi2';
+import Whiteboard from '@/components/Whiteboard';
 import { useSocket } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
@@ -58,6 +61,7 @@ export default function Room() {
     const [isTodoOpen, setIsTodoOpen] = useState(false);
     const [isAmbientOpen, setIsAmbientOpen] = useState(false);
     const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
+    const [showWhiteboard, setShowWhiteboard] = useState(false);
     const [pingTarget, setPingTarget] = useState(null);
     const [pinnedUser, setPinnedUser] = useState(null); // Track pinned video
     const [unreadCount, setUnreadCount] = useState(0);
@@ -596,6 +600,15 @@ export default function Room() {
                         )}
                     </div>
 
+                    {/* Jamboard Control */}
+                    <button
+                        onClick={() => setShowWhiteboard(true)}
+                        className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all active:scale-95 ${showWhiteboard ? 'bg-primary text-white' : isDark ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                        title="Jamboard"
+                    >
+                        <HiPencil className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+
                     <div className={`w-px h-5 sm:h-6 mx-0.5 sm:mx-1 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}></div>
 
                     {/* Participants */}
@@ -634,6 +647,15 @@ export default function Room() {
             {pingTarget?.socketId === 'local' && <PingOverlay username={pingTarget.username} />}
 
             <AmbientPlayer isOpen={isAmbientOpen} onClose={() => setIsAmbientOpen(false)} />
+
+            {showWhiteboard && (
+                <Whiteboard
+                    socket={socket}
+                    roomId={roomId}
+                    onClose={() => setShowWhiteboard(false)}
+                    isGuest={isGuest}
+                />
+            )}
         </div>
     );
 }

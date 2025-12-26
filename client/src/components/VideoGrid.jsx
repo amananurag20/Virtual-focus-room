@@ -81,9 +81,9 @@ export default function VideoGrid({
 
                 {/* Unpinned Videos - Horizontal scrollable strip at bottom */}
                 {(unpinnedParticipants.length > 0 || !isLocalPinned) && (
-                    <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 px-1 scrollbar-thin">
+                    <div className="flex gap-2 overflow-x-auto pb-2 px-1 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
                         {!isLocalPinned && (
-                            <div className="shrink-0 w-24 xs:w-28 sm:w-36 md:w-44">
+                            <div className="shrink-0 w-32 xs:w-36 sm:w-44 md:w-56 aspect-video">
                                 <VideoPlayer
                                     videoRef={localVideoRef}
                                     stream={localStream}
@@ -101,7 +101,7 @@ export default function VideoGrid({
                             </div>
                         )}
                         {unpinnedParticipants.map((participant) => (
-                            <div key={participant.socketId} className="shrink-0 w-24 xs:w-28 sm:w-36 md:w-44">
+                            <div key={participant.socketId} className="shrink-0 w-32 xs:w-36 sm:w-44 md:w-56 aspect-video">
                                 <VideoPlayer
                                     stream={remoteStreams[participant.socketId]}
                                     username={participant.username || 'Anonymous'}
