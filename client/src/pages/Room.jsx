@@ -134,7 +134,7 @@ export default function Room() {
                 toast('You are in view-only mode as a guest', { icon: '👁️' });
             }
 
-            socket.emit('room:join', { roomId, username, userTier: tier }, async (response) => {
+            socket.emit('room:join', { roomId, username, userTier: tier, userId: user?._id }, async (response) => {
                 if (response.success) {
                     setRoomInfo(response.room);
                     hasJoinedRef.current = true;
@@ -175,9 +175,9 @@ export default function Room() {
 
     useEffect(() => {
         if (!socket) return;
-        const handleUserJoined = ({ socketId, username, userTier }) => {
+        const handleUserJoined = ({ socketId, username, userTier, userId }) => {
             toast.success(`${username} joined${userTier === 'guest' ? ' (guest)' : ''}`);
-            setParticipants(prev => ({ ...prev, [socketId]: { socketId, username, userTier, isAudioOn: userTier !== 'guest', isVideoOn: userTier !== 'guest' } }));
+            setParticipants(prev => ({ ...prev, [socketId]: { socketId, username, userTier, userId, isAudioOn: userTier !== 'guest', isVideoOn: userTier !== 'guest' } }));
         };
         const handleUserLeft = ({ socketId }) => { const user = participants[socketId]; if (user) toast(`${user.username} left`, { icon: '👋' }); setParticipants(prev => { const u = { ...prev }; delete u[socketId]; return u; }); };
         const handleMediaToggle = ({ socketId, type, enabled }) => { setParticipants(prev => ({ ...prev, [socketId]: { ...prev[socketId], [type === 'audio' ? 'isAudioOn' : 'isVideoOn']: enabled } })); };
@@ -520,7 +520,15 @@ export default function Room() {
                 {/* Side panels - Full screen overlay on mobile, side panel on desktop */}
                 {isUserListOpen && (
                     <div className="absolute inset-0 z-20 sm:relative sm:inset-auto">
-                        <UserList participants={participants} username={username} socketId={socket?.id} onPingUser={handlePingUser} onClose={() => setIsUserListOpen(false)} />
+                        <UserList
+                            participants={participants}
+                            username={username}
+                            socketId={socket?.id}
+                            onPingUser={handlePingUser}
+                            onClose={() => setIsUserListOpen(false)}
+                            currentUserId={user?._id}
+                            friends={user?.friends || []}
+                        />
                     </div>
                 )}
                 {isChatOpen && (

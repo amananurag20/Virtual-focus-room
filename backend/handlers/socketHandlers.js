@@ -47,7 +47,7 @@ function setupSocketHandlers(io, socket) {
  * Handle room creation
  * Now supports private rooms and creator tier
  */
-function handleRoomCreate(io, socket, { roomName, username, isPrivate, password, creatorTier }, callback) {
+function handleRoomCreate(io, socket, { roomName, username, isPrivate, password, creatorTier, userId }, callback) {
     const { roomId, room } = roomManager.createRoom(
         roomName || `${username}'s Room`,
         isPrivate || false,
@@ -56,7 +56,7 @@ function handleRoomCreate(io, socket, { roomName, username, isPrivate, password,
     );
 
     // Add creator to room with their tier
-    const userData = roomManager.addUserToRoom(roomId, socket.id, username, creatorTier || 'free');
+    const userData = roomManager.addUserToRoom(roomId, socket.id, username, creatorTier || 'free', userId);
     socket.join(roomId);
 
     console.log(`Room created: ${roomId} by ${userData.username} (${creatorTier}${isPrivate ? ', private' : ''})`);
@@ -75,7 +75,7 @@ function handleRoomCreate(io, socket, { roomName, username, isPrivate, password,
  * Handle room joining
  * Now supports user tiers and private room password verification
  */
-function handleRoomJoin(io, socket, { roomId, username, userTier, password }, callback) {
+function handleRoomJoin(io, socket, { roomId, username, userTier, password, userId }, callback) {
     const room = roomManager.getRoom(roomId);
 
     if (!room) {
@@ -100,20 +100,22 @@ function handleRoomJoin(io, socket, { roomId, username, userTier, password }, ca
         .map(([id, user]) => ({
             socketId: id,
             username: user.username,
-            userTier: user.userTier
+            userTier: user.userTier,
+            userId: user.userId // Include userId
         }));
 
-    // Add user to room with their tier
-    const userData = roomManager.addUserToRoom(roomId, socket.id, username, userTier || 'guest');
+    // Add user to room with their tier AND userId
+    const userData = roomManager.addUserToRoom(roomId, socket.id, username, userTier || 'guest', userId);
     socket.join(roomId);
 
     console.log(`${userData.username} (${userTier || 'guest'}) joined room: ${roomId}`);
 
-    // Notify others in room about new user
+    // Notify others in room about new user including userId
     socket.to(roomId).emit("user:joined", {
         socketId: socket.id,
         username: userData.username,
-        userTier: userData.userTier
+        userTier: userData.userTier,
+        userId: userData.userId
     });
 
     // Update rooms list for all

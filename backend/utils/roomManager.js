@@ -18,6 +18,7 @@ function getRoomData(roomId) {
         socketId: user.socketId,
         username: user.username,
         userTier: user.userTier,
+        userId: user.userId,
         isAudioOn: user.isAudioOn,
         isVideoOn: user.isVideoOn
     }));
@@ -80,7 +81,7 @@ function createRoom(roomName, isPrivate = false, password = null, creatorTier = 
  * @param {string} username - Username
  * @param {string} userTier - User tier (guest/free/premium)
  */
-function addUserToRoom(roomId, socketId, username, userTier = 'guest') {
+function addUserToRoom(roomId, socketId, username, userTier = 'guest', userId = null) {
     const room = rooms.get(roomId);
     if (!room) return null;
 
@@ -92,6 +93,7 @@ function addUserToRoom(roomId, socketId, username, userTier = 'guest') {
         username: username || `User_${socketId.slice(-4)}`,
         roomId,
         userTier,
+        userId, // Store DB ID
         isAudioOn: !isGuest,
         isVideoOn: !isGuest
     };

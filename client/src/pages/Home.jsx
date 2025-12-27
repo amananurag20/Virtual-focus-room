@@ -99,7 +99,8 @@ export default function Home() {
             username: username.trim(),
             isPrivate: isPrivateRoom && isPremium,
             password: isPrivateRoom && isPremium ? roomPassword : null,
-            creatorTier: tier
+            creatorTier: tier,
+            userId: user?._id // Send User ID
         }, (response) => {
             setIsCreating(false);
             if (response.success) {
@@ -125,7 +126,8 @@ export default function Home() {
         socket.emit('room:join', {
             roomId,
             username: displayName,
-            userTier: tier
+            userTier: tier,
+            userId: user?._id // Send User ID
         }, (response) => {
             if (response.success) {
                 localStorage.setItem('focusroom_username', displayName);

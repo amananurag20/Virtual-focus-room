@@ -1,11 +1,15 @@
-import { HiXMark, HiBellAlert, HiEye, HiStar } from 'react-icons/hi2';
+import { useState } from 'react';
+import { HiXMark, HiBellAlert, HiEye, HiStar, HiUserPlus } from 'react-icons/hi2';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
+import api from '@/utils/axios';
+import toast from 'react-hot-toast';
 
-export default function UserList({ participants, username, socketId, onPingUser, onClose }) {
+export default function UserList({ participants, username, socketId, onPingUser, onClose, currentUserId, friends = [] }) {
     const { tier, isPremium, isGuest } = useAuth();
     const participantList = Object.values(participants);
+    const [sentRequests, setSentRequests] = useState([]);
 
     // Get tier badge for participants
     const getTierBadge = (userTier) => {
@@ -32,6 +36,22 @@ export default function UserList({ participants, username, socketId, onPingUser,
         if (userTier === 'guest') return 'from-slate-500 to-slate-600';
         return 'from-emerald-500 to-teal-600';
     };
+
+    const handleSendRequest = async (receiverId) => {
+        if (!receiverId) return;
+        try {
+            const res = await api.post('/api/friends/request', { receiverId });
+            if (res.data.success) {
+                toast.success('Friend request sent');
+                setSentRequests(prev => [...prev, receiverId]);
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to send request');
+        }
+    };
+
+    const isFriend = (id) => friends.includes(id) || friends.some(f => f._id === id);
+    const isRequestSent = (id) => sentRequests.includes(id);
 
     return (
         <Card className="w-full sm:w-80 h-full border-l rounded-none flex flex-col animate-in slide-in-from-right-5 duration-300 bg-card">
@@ -70,6 +90,8 @@ export default function UserList({ participants, username, socketId, onPingUser,
                 {/* Other Participants */}
                 {participantList.map(participant => {
                     const isParticipantGuest = participant.userTier === 'guest';
+                    const canAddFriend = !isGuest && !isParticipantGuest && participant.userId && !isFriend(participant.userId) && participant.userId !== currentUserId;
+                    const requestSent = isRequestSent(participant.userId);
 
                     return (
                         <div
@@ -99,16 +121,31 @@ export default function UserList({ participants, username, socketId, onPingUser,
                                     </div>
                                 </div>
                             </div>
-                            {!isParticipantGuest && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onPingUser(participant.socketId)}
-                                    className="h-8 w-8 rounded-full opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 shrink-0"
-                                >
-                                    <HiBellAlert className="w-4 h-4" />
-                                </Button>
-                            )}
+                            <div className="flex gap-1">
+                                {canAddFriend && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleSendRequest(participant.userId)}
+                                        disabled={requestSent}
+                                        title={requestSent ? "Request Sent" : "Add Friend"}
+                                        className={`h-8 w-8 rounded-full transition-opacity ${requestSent ? 'opacity-50' : 'opacity-100 sm:opacity-0 group-hover:opacity-100 text-primary hover:text-primary hover:bg-primary/10'}`}
+                                    >
+                                        {requestSent ? <HiCheck className="w-4 h-4" /> : <HiUserPlus className="w-4 h-4" />}
+                                    </Button>
+                                )}
+                                {!isParticipantGuest && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => onPingUser(participant.socketId)}
+                                        className="h-8 w-8 rounded-full opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 shrink-0"
+                                        title="Ping"
+                                    >
+                                        <HiBellAlert className="w-4 h-4" />
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     );
                 })}

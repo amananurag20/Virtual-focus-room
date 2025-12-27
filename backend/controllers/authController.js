@@ -41,7 +41,8 @@ exports.signup = async (req, res) => {
                     name: user.name,
                     email: user.email,
                     tier: user.tier,
-                    isPremium: user.isPremium
+                    isPremium: user.isPremium,
+                    friends: user.friends
                 },
                 token: generateToken(user._id)
             });
@@ -69,7 +70,8 @@ exports.login = async (req, res) => {
                     name: user.name,
                     email: user.email,
                     tier: user.tier,
-                    isPremium: user.isPremium
+                    isPremium: user.isPremium,
+                    friends: user.friends
                 },
                 token: generateToken(user._id)
             });
