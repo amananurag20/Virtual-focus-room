@@ -98,12 +98,23 @@ const Whiteboard = ({ socket, roomId, onClose, isGuest }) => {
             }
         };
 
+        const onHistory = (history) => {
+            if (Array.isArray(history)) {
+                history.forEach(action => onDraw(action));
+            }
+        }
+
         socket.on('whiteboard:draw', onDraw);
         socket.on('whiteboard:clear', onClear);
+        socket.on('whiteboard:history', onHistory);
+
+        // Request history on open
+        socket.emit('whiteboard:request-history');
 
         return () => {
             socket.off('whiteboard:draw', onDraw);
             socket.off('whiteboard:clear', onClear);
+            socket.off('whiteboard:history', onHistory);
         };
     }, [socket]);
 

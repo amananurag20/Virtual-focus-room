@@ -38,6 +38,7 @@ function setupSocketHandlers(io, socket) {
     // Whiteboard events
     socket.on("whiteboard:draw", (data) => handleWhiteboardDraw(socket, data));
     socket.on("whiteboard:clear", (data) => handleWhiteboardClear(socket, data));
+    socket.on("whiteboard:request-history", () => handleWhiteboardHistoryRequest(socket));
 
     // Disconnect
     socket.on("disconnect", () => handleDisconnect(io, socket));
@@ -292,6 +293,7 @@ function handleDisconnect(io, socket) {
 function handleWhiteboardDraw(socket, data) {
     const user = roomManager.getUser(socket.id);
     if (user) {
+        roomManager.addWhiteboardAction(user.roomId, data);
         socket.to(user.roomId).emit("whiteboard:draw", data);
     }
 }
@@ -302,7 +304,19 @@ function handleWhiteboardDraw(socket, data) {
 function handleWhiteboardClear(socket, data) {
     const user = roomManager.getUser(socket.id);
     if (user) {
+        roomManager.clearWhiteboardHistory(user.roomId);
         socket.to(user.roomId).emit("whiteboard:clear");
+    }
+}
+
+/**
+ * Handle whiteboard history request
+ */
+function handleWhiteboardHistoryRequest(socket) {
+    const user = roomManager.getUser(socket.id);
+    if (user) {
+        const history = roomManager.getWhiteboardHistory(user.roomId);
+        socket.emit("whiteboard:history", history);
     }
 }
 

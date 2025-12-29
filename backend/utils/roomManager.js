@@ -67,6 +67,7 @@ function createRoom(roomName, isPrivate = false, password = null, creatorTier = 
         creatorTier,
         participants: new Map(),
         messages: [],
+        whiteboardHistory: [],
         createdAt: new Date().toISOString()
     };
 
@@ -195,6 +196,35 @@ function addMessageToRoom(roomId, message) {
     return message;
 }
 
+/**
+ * Add whiteboard action to history
+ */
+function addWhiteboardAction(roomId, action) {
+    const room = rooms.get(roomId);
+    if (!room) return;
+
+    room.whiteboardHistory.push(action);
+    return action;
+}
+
+/**
+ * Clear whiteboard history
+ */
+function clearWhiteboardHistory(roomId) {
+    const room = rooms.get(roomId);
+    if (!room) return;
+
+    room.whiteboardHistory = [];
+}
+
+/**
+ * Get whiteboard history
+ */
+function getWhiteboardHistory(roomId) {
+    const room = rooms.get(roomId);
+    return room ? room.whiteboardHistory : [];
+}
+
 module.exports = {
     rooms,
     users,
@@ -208,5 +238,9 @@ module.exports = {
     updateUserMedia,
     addMessageToRoom,
     verifyRoomPassword,
-    isRoomPrivate
+    isRoomPrivate,
+    addWhiteboardAction,
+    clearWhiteboardHistory,
+    getWhiteboardHistory
 };
+
