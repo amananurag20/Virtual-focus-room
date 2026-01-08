@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { SocketProvider } from './context/SocketContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -13,13 +13,13 @@ function App() {
     <AuthProvider>
       <ThemeProvider>
         <SocketProvider>
-          <BrowserRouter>
+          <HashRouter>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/room/:roomId" element={<Room />} />
             </Routes>
-          </BrowserRouter>
+          </HashRouter>
           <Toaster
             position="top-right"
             toastOptions={{

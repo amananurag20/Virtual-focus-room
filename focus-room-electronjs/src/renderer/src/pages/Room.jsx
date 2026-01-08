@@ -38,6 +38,7 @@ import ChatPanel from '@/components/ChatPanel';
 import UserList from '@/components/UserList';
 import PingOverlay from '@/components/PingOverlay';
 import AmbientPlayer from '@/components/AmbientPlayer';
+import ScreenSourcePicker from '@/components/ScreenSourcePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -49,7 +50,7 @@ export default function Room() {
     const { socket, isConnected } = useSocket();
     const { theme } = useTheme();
     const { user, tier, isGuest, isLoggedIn, isPremium, permissions } = useAuth();
-    const { stream, isAudioOn, isVideoOn, isScreenSharing, startStream, stopStream, toggleAudio, toggleVideo, toggleScreenShare } = useMediaStream();
+    const { stream, isAudioOn, isVideoOn, isScreenSharing, startStream, stopStream, toggleAudio, toggleVideo, toggleScreenShare, availableSources, showSourcePicker, startScreenShareWithSource, cancelSourcePicker } = useMediaStream();
     const { remoteStreams, initiateCall, closeAllConnections, updateLocalTracks } = useWebRTC(socket, stream);
 
     const [roomInfo, setRoomInfo] = useState(null);
@@ -212,6 +213,12 @@ export default function Room() {
         }
         const result = await toggleScreenShare();
 
+        // result is null when showing picker (Electron), true on success, false on failure
+        if (result === null) {
+            // Picker is being shown, don't do anything yet
+            return;
+        }
+
         // Update tracks in all peer connections after a short delay to allow stream to update
         setTimeout(() => {
             if (stream) {
@@ -227,6 +234,23 @@ export default function Room() {
             socket?.emit('media:toggle', { type: 'screen', enabled: false });
         }
     }, [toggleScreenShare, isScreenSharing, socket, permissions, stream, updateLocalTracks]);
+
+    // Handle selecting a screen source in Electron
+    const handleSelectScreenSource = useCallback(async (sourceId) => {
+        const result = await startScreenShareWithSource(sourceId);
+
+        if (result) {
+            // Update tracks in all peer connections
+            setTimeout(() => {
+                if (stream) {
+                    updateLocalTracks(stream);
+                }
+            }, 100);
+
+            toast.success('Screen sharing started');
+            socket?.emit('media:toggle', { type: 'screen', enabled: true });
+        }
+    }, [startScreenShareWithSource, stream, updateLocalTracks, socket]);
 
     const handleLeaveRoom = useCallback(() => { socket?.emit('room:leave'); closeAllConnections(); stopStream(); toast('Left the room', { icon: '👋' }); navigate('/'); }, [socket, closeAllConnections, stopStream, navigate]);
 
@@ -663,6 +687,14 @@ export default function Room() {
                     isGuest={isGuest}
                 />
             )}
+
+            {/* Electron Screen Source Picker */}
+            <ScreenSourcePicker
+                isOpen={showSourcePicker}
+                sources={availableSources}
+                onSelectSource={handleSelectScreenSource}
+                onClose={cancelSourcePicker}
+            />
         </div>
     );
 }

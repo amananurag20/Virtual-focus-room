@@ -1,11 +1,18 @@
 import { useState, useCallback, useRef } from 'react';
 
+// Check if running in Electron
+const isElectron = () => {
+    return typeof window !== 'undefined' && window.api?.isElectron === true;
+};
+
 export function useMediaStream() {
     const [stream, setStream] = useState(null);
     const [isAudioOn, setIsAudioOn] = useState(false);
     const [isVideoOn, setIsVideoOn] = useState(true);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [error, setError] = useState(null);
+    const [availableSources, setAvailableSources] = useState([]);
+    const [showSourcePicker, setShowSourcePicker] = useState(false);
 
     const screenStreamRef = useRef(null);
     const wasVideoOnBeforeScreenShare = useRef(true);
@@ -68,6 +75,52 @@ export function useMediaStream() {
         return isVideoOn;
     }, [stream, isVideoOn, isScreenSharing]);
 
+    // Start screen share with a specific source (for Electron)
+    const startScreenShareWithSource = useCallback(async (sourceId) => {
+        try {
+            const constraints = {
+                audio: false,
+                video: {
+                    mandatory: {
+                        chromeMediaSource: 'desktop',
+                        chromeMediaSourceId: sourceId
+                    }
+                }
+            };
+
+            const displayStream = await navigator.mediaDevices.getUserMedia(constraints);
+            screenStreamRef.current = displayStream;
+            const screenTrack = displayStream.getVideoTracks()[0];
+
+            // Save current video state before replacing
+            wasVideoOnBeforeScreenShare.current = isVideoOn;
+
+            // Replace video track with screen track
+            if (stream) {
+                const currentVideoTrack = stream.getVideoTracks()[0];
+                if (currentVideoTrack) {
+                    stream.removeTrack(currentVideoTrack);
+                    currentVideoTrack.stop();
+                }
+                stream.addTrack(screenTrack);
+            }
+
+            // Handle user stopping via browser UI
+            screenTrack.onended = () => {
+                toggleScreenShare();
+            };
+
+            setIsScreenSharing(true);
+            setShowSourcePicker(false);
+            return true;
+        } catch (err) {
+            console.error('[useMediaStream] Electron screen share error:', err);
+            setError(err.message);
+            setShowSourcePicker(false);
+            return false;
+        }
+    }, [stream, isVideoOn]);
+
     const toggleScreenShare = useCallback(async () => {
         if (isScreenSharing) {
             // Stop screen sharing
@@ -104,6 +157,27 @@ export function useMediaStream() {
             return false;
         } else {
             // Start screen sharing
+            // Check if running in Electron
+            if (isElectron() && window.api?.getSources) {
+                try {
+                    // Get available sources from Electron
+                    const sources = await window.api.getSources();
+                    if (sources && sources.length > 0) {
+                        setAvailableSources(sources);
+                        setShowSourcePicker(true);
+                        // Return null to indicate picker is shown
+                        return null;
+                    } else {
+                        console.error('[useMediaStream] No sources available');
+                        return false;
+                    }
+                } catch (err) {
+                    console.error('[useMediaStream] Error getting Electron sources:', err);
+                    // Fallback to browser API
+                }
+            }
+
+            // Browser fallback or non-Electron environment
             try {
                 const displayStream = await navigator.mediaDevices.getDisplayMedia({
                     video: { cursor: 'always' },
@@ -143,6 +217,12 @@ export function useMediaStream() {
         }
     }, [stream, isScreenSharing, isVideoOn]);
 
+    // Cancel source picker
+    const cancelSourcePicker = useCallback(() => {
+        setShowSourcePicker(false);
+        setAvailableSources([]);
+    }, []);
+
     return {
         stream,
         isAudioOn,
@@ -153,6 +233,13 @@ export function useMediaStream() {
         stopStream,
         toggleAudio,
         toggleVideo,
-        toggleScreenShare
+        toggleScreenShare,
+        // Electron screen sharing specific
+        availableSources,
+        showSourcePicker,
+        startScreenShareWithSource,
+        cancelSourcePicker,
+        isElectron: isElectron()
     };
 }
+

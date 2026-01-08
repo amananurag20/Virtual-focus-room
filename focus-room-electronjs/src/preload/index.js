@@ -1,8 +1,17 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
-const api = {}
+const api = {
+  // Get desktop sources for screen sharing
+  getSources: () => ipcRenderer.invoke('get-sources'),
+
+  // Platform info
+  platform: process.platform,
+
+  // App info
+  isElectron: true
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -18,3 +27,4 @@ if (process.contextIsolated) {
   window.electron = electronAPI
   window.api = api
 }
+
