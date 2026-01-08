@@ -1,24 +1,27 @@
-import { app, shell, BrowserWindow, ipcMain, desktopCapturer, session } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, desktopCapturer, session, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
+let mainWindow = null
+let tray = null
+let isQuitting = false
+
 function createWindow() {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon: icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
-      // Enable web features for media
       webSecurity: true
     }
   })
@@ -27,23 +30,115 @@ function createWindow() {
     mainWindow.show()
   })
 
+  // Minimize to tray instead of closing
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault()
+      mainWindow.hide()
+
+      // Show notification on first minimize (Windows)
+      if (process.platform === 'win32' && tray) {
+        tray.displayBalloon({
+          iconType: 'info',
+          title: 'FocusRoom',
+          content: 'App minimized to tray. Click the tray icon to open.'
+        })
+      }
+    }
+    return false
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
   // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  return mainWindow
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+function createTray() {
+  // Create tray icon
+  const trayIcon = nativeImage.createFromPath(icon)
+
+  // Resize for tray (16x16 on Windows, 22x22 on macOS)
+  const resizedIcon = trayIcon.resize({
+    width: process.platform === 'darwin' ? 22 : 16,
+    height: process.platform === 'darwin' ? 22 : 16
+  })
+
+  tray = new Tray(resizedIcon)
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '📖 Open FocusRoom',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      }
+    },
+    {
+      label: '🎯 Start Focus Session',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+          mainWindow.focus()
+          // Could send IPC to start a focus session
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '⚙️ Settings',
+      enabled: false // Can be implemented later
+    },
+    { type: 'separator' },
+    {
+      label: '❌ Exit',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      }
+    }
+  ])
+
+  tray.setToolTip('FocusRoom - Virtual Study Space')
+  tray.setContextMenu(contextMenu)
+
+  // Double-click to show window
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.focus()
+      } else {
+        mainWindow.show()
+      }
+    }
+  })
+
+  // Single click on Windows to show window
+  if (process.platform === 'win32') {
+    tray.on('click', () => {
+      if (mainWindow) {
+        if (mainWindow.isVisible()) {
+          mainWindow.focus()
+        } else {
+          mainWindow.show()
+        }
+      }
+    })
+  }
+}
+
+// This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.focusroom.desktop')
@@ -67,8 +162,6 @@ app.whenReady().then(() => {
   })
 
   // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -95,24 +188,35 @@ app.whenReady().then(() => {
     }
   })
 
+  // Create window and tray
   createWindow()
+  createTray()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    } else if (mainWindow) {
+      mainWindow.show()
+    }
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+// Handle before-quit to properly exit
+app.on('before-quit', () => {
+  isQuitting = true
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+// On macOS, keep app running even when all windows are closed
+app.on('window-all-closed', () => {
+  // Don't quit - app stays in tray
+  // User must explicitly quit from tray menu
+})
 
+// Cleanup on quit
+app.on('quit', () => {
+  if (tray) {
+    tray.destroy()
+  }
+})
