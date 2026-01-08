@@ -1,29 +1,96 @@
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, RefreshControl, ActivityIndicator, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
-
-const friends = [
-    { id: 1, name: "Sarah Johnson", status: "Studying React", online: true, streak: 15 },
-    { id: 2, name: "Mike Chen", status: "Deep Focus Mode", online: true, streak: 22 },
-    { id: 3, name: "Emma Wilson", status: "Taking a break", online: false, streak: 8 },
-    { id: 4, name: "Alex Turner", status: "Coding Session", online: true, streak: 30 },
-    { id: 5, name: "Lisa Park", status: "Away", online: false, streak: 5 },
-];
-
-const pendingRequests = [
-    { id: 1, name: "David Brown", mutualFriends: 3 },
-    { id: 2, name: "Sophie Miller", mutualFriends: 5 },
-];
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { useAuth } from "@/context/AuthContext";
+import { getFriendDetails, acceptFriendRequest, rejectFriendRequest, Friend, FriendRequest } from "@/services/friendService";
 
 export default function FriendsScreen() {
+    const router = useRouter();
+    const { isLoggedIn } = useAuth();
     const [search, setSearch] = useState("");
     const [tab, setTab] = useState<"friends" | "requests">("friends");
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [receivedRequests, setReceivedRequests] = useState<FriendRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        if (!isLoggedIn) {
+            setLoading(false);
+            return;
+        }
+        try {
+            const data = await getFriendDetails();
+            if (data.success) {
+                setFriends(data.friends);
+                setReceivedRequests(data.receivedRequests);
+            }
+        } catch (error) {
+            console.log("Failed to fetch friends:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [isLoggedIn]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchData();
+        setRefreshing(false);
+    }, [fetchData]);
+
+    const handleAccept = async (requestId: string) => {
+        try {
+            const result = await acceptFriendRequest(requestId);
+            if (result.success) {
+                Alert.alert("Success", "Friend request accepted!");
+                fetchData();
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to accept request");
+        }
+    };
+
+    const handleReject = async (requestId: string) => {
+        try {
+            const result = await rejectFriendRequest(requestId);
+            if (result.success) {
+                fetchData();
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to reject request");
+        }
+    };
 
     const filtered = friends.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()));
-    const online = filtered.filter((f) => f.online);
-    const offline = filtered.filter((f) => !f.online);
+
+    if (!isLoggedIn) {
+        return (
+            <LinearGradient colors={["#0a0a1a", "#0f0f2a", "#1a1a35"]} style={styles.container}>
+                <SafeAreaView style={styles.safeArea}>
+                    <View style={styles.header}>
+                        <Text style={styles.title}>Friends</Text>
+                    </View>
+                    <View style={styles.loginPrompt}>
+                        <Ionicons name="people-outline" size={64} color="#6b7280" />
+                        <Text style={styles.loginTitle}>Sign in to see friends</Text>
+                        <Text style={styles.loginSubtitle}>Connect with other focused learners</Text>
+                        <Pressable style={styles.loginBtn} onPress={() => router.push("/(auth)/login")}>
+                            <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.loginBtnGrad}>
+                                <Text style={styles.loginBtnText}>Sign In</Text>
+                            </LinearGradient>
+                        </Pressable>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
+        );
+    }
 
     return (
         <LinearGradient colors={["#0a0a1a", "#0f0f2a", "#1a1a35"]} style={styles.container}>
@@ -47,78 +114,68 @@ export default function FriendsScreen() {
                         <Text style={[styles.tabText, tab === "friends" && styles.tabTextActive]}>Friends ({friends.length})</Text>
                     </Pressable>
                     <Pressable style={[styles.tab, tab === "requests" && styles.tabActive]} onPress={() => setTab("requests")}>
-                        <Text style={[styles.tabText, tab === "requests" && styles.tabTextActive]}>Requests ({pendingRequests.length})</Text>
-                        {pendingRequests.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{pendingRequests.length}</Text></View>}
+                        <Text style={[styles.tabText, tab === "requests" && styles.tabTextActive]}>Requests ({receivedRequests.length})</Text>
+                        {receivedRequests.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{receivedRequests.length}</Text></View>}
                     </Pressable>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-                    {tab === "friends" ? (
-                        <>
-                            {online.length > 0 && (
-                                <View style={styles.section}>
-                                    <Text style={styles.sectionTitle}>Online — {online.length}</Text>
-                                    {online.map((f) => (
-                                        <Pressable key={f.id} style={styles.friendCard}>
-                                            <View style={styles.avatarWrap}>
-                                                <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.avatar}>
-                                                    <Text style={styles.avatarText}>{f.name.charAt(0)}</Text>
-                                                </LinearGradient>
-                                                <View style={styles.onlineDot} />
-                                            </View>
-                                            <View style={styles.friendInfo}>
-                                                <Text style={styles.friendName}>{f.name}</Text>
-                                                <Text style={styles.friendStatus}>{f.status}</Text>
-                                            </View>
-                                            <View style={styles.streak}>
-                                                <Ionicons name="flame" size={16} color="#f59e0b" />
-                                                <Text style={styles.streakText}>{f.streak}</Text>
-                                            </View>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#a78bfa" />}>
+                    {loading ? (
+                        <ActivityIndicator color="#a78bfa" style={{ marginTop: 40 }} />
+                    ) : tab === "friends" ? (
+                        filtered.length > 0 ? (
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>All Friends — {filtered.length}</Text>
+                                {filtered.map((f) => (
+                                    <Pressable key={f._id} style={styles.friendCard}>
+                                        <View style={styles.avatarWrap}>
+                                            <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.avatar}>
+                                                <Text style={styles.avatarText}>{f.name.charAt(0).toUpperCase()}</Text>
+                                            </LinearGradient>
+                                        </View>
+                                        <View style={styles.friendInfo}>
+                                            <Text style={styles.friendName}>{f.name}</Text>
+                                            <Text style={styles.friendStatus}>{f.email}</Text>
+                                        </View>
+                                        <Pressable style={styles.chatBtn}>
+                                            <Ionicons name="chatbubble-outline" size={20} color="#a78bfa" />
                                         </Pressable>
-                                    ))}
-                                </View>
-                            )}
-                            {offline.length > 0 && (
-                                <View style={styles.section}>
-                                    <Text style={styles.sectionTitle}>Offline — {offline.length}</Text>
-                                    {offline.map((f) => (
-                                        <Pressable key={f.id} style={styles.friendCard}>
-                                            <View style={styles.avatarWrap}>
-                                                <View style={[styles.avatar, styles.avatarOffline]}>
-                                                    <Text style={styles.avatarText}>{f.name.charAt(0)}</Text>
-                                                </View>
-                                            </View>
-                                            <View style={styles.friendInfo}>
-                                                <Text style={styles.friendName}>{f.name}</Text>
-                                                <Text style={styles.friendStatus}>{f.status}</Text>
-                                            </View>
-                                            <View style={styles.streak}>
-                                                <Ionicons name="flame" size={16} color="#f59e0b" />
-                                                <Text style={styles.streakText}>{f.streak}</Text>
-                                            </View>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            )}
-                        </>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        ) : (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="people-outline" size={48} color="#6b7280" />
+                                <Text style={styles.emptyTitle}>No friends yet</Text>
+                                <Text style={styles.emptySubtitle}>Start adding friends to study together</Text>
+                            </View>
+                        )
                     ) : (
-                        <View style={styles.section}>
-                            {pendingRequests.map((r) => (
-                                <View key={r.id} style={styles.requestCard}>
-                                    <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.avatar}>
-                                        <Text style={styles.avatarText}>{r.name.charAt(0)}</Text>
-                                    </LinearGradient>
-                                    <View style={styles.requestInfo}>
-                                        <Text style={styles.friendName}>{r.name}</Text>
-                                        <Text style={styles.mutualText}>{r.mutualFriends} mutual friends</Text>
+                        receivedRequests.length > 0 ? (
+                            <View style={styles.section}>
+                                {receivedRequests.map((r) => (
+                                    <View key={r._id} style={styles.requestCard}>
+                                        <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.avatar}>
+                                            <Text style={styles.avatarText}>{r.sender.name.charAt(0).toUpperCase()}</Text>
+                                        </LinearGradient>
+                                        <View style={styles.requestInfo}>
+                                            <Text style={styles.friendName}>{r.sender.name}</Text>
+                                            <Text style={styles.mutualText}>{r.sender.email}</Text>
+                                        </View>
+                                        <View style={styles.requestActions}>
+                                            <Pressable style={styles.acceptBtn} onPress={() => handleAccept(r._id)}><Ionicons name="checkmark" size={20} color="#fff" /></Pressable>
+                                            <Pressable style={styles.declineBtn} onPress={() => handleReject(r._id)}><Ionicons name="close" size={20} color="#ef4444" /></Pressable>
+                                        </View>
                                     </View>
-                                    <View style={styles.requestActions}>
-                                        <Pressable style={styles.acceptBtn}><Ionicons name="checkmark" size={20} color="#fff" /></Pressable>
-                                        <Pressable style={styles.declineBtn}><Ionicons name="close" size={20} color="#ef4444" /></Pressable>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="mail-outline" size={48} color="#6b7280" />
+                                <Text style={styles.emptyTitle}>No pending requests</Text>
+                                <Text style={styles.emptySubtitle}>Friend requests will appear here</Text>
+                            </View>
+                        )
                     )}
                     <View style={{ height: 100 }} />
                 </ScrollView>
@@ -147,20 +204,26 @@ const styles = StyleSheet.create({
     section: { marginBottom: 20 },
     sectionTitle: { color: "#9ca3af", fontSize: 13, fontWeight: "600", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 },
     friendCard: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-    avatarWrap: { position: "relative", marginRight: 14 },
+    avatarWrap: { marginRight: 14 },
     avatar: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-    avatarOffline: { backgroundColor: "rgba(107,114,128,0.3)" },
     avatarText: { color: "#fff", fontSize: 18, fontWeight: "600" },
-    onlineDot: { position: "absolute", bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, backgroundColor: "#10b981", borderWidth: 2, borderColor: "#0f0f2a" },
     friendInfo: { flex: 1 },
     friendName: { color: "#fff", fontSize: 16, fontWeight: "600", marginBottom: 4 },
     friendStatus: { color: "#9ca3af", fontSize: 13 },
-    streak: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(245,158,11,0.15)", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, gap: 4 },
-    streakText: { color: "#f59e0b", fontSize: 13, fontWeight: "600" },
+    chatBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(139,92,246,0.15)", alignItems: "center", justifyContent: "center" },
     requestCard: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
     requestInfo: { flex: 1, marginLeft: 14 },
     mutualText: { color: "#9ca3af", fontSize: 12, marginTop: 4 },
     requestActions: { flexDirection: "row", gap: 8 },
     acceptBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(16,185,129,0.3)", alignItems: "center", justifyContent: "center" },
     declineBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(239,68,68,0.2)", alignItems: "center", justifyContent: "center" },
+    emptyState: { alignItems: "center", paddingTop: 60 },
+    emptyTitle: { color: "#fff", fontSize: 18, fontWeight: "600", marginTop: 16 },
+    emptySubtitle: { color: "#9ca3af", fontSize: 14, marginTop: 8 },
+    loginPrompt: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
+    loginTitle: { color: "#fff", fontSize: 20, fontWeight: "600", marginTop: 20 },
+    loginSubtitle: { color: "#9ca3af", fontSize: 15, marginTop: 8, textAlign: "center" },
+    loginBtn: { borderRadius: 30, overflow: "hidden", marginTop: 24 },
+    loginBtnGrad: { paddingHorizontal: 32, paddingVertical: 14 },
+    loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });
