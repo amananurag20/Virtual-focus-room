@@ -1,10 +1,26 @@
 // API Configuration for Focus Room Mobile App
-// For development, use your computer's local IP address instead of localhost
-// because the mobile device/emulator can't access localhost on your computer
+// 
+// IMPORTANT: Update API_BASE_URL with your machine's IP address for mobile testing
+// To find your IP:
+// - Windows: Run 'ipconfig' in terminal, look for IPv4 address
+// - Mac/Linux: Run 'ifconfig' or 'ip addr'
+// 
+// For development with Expo, mobile devices cannot access 'localhost'
+// Use your actual LAN IP address (e.g., 192.168.1.100)
 
-// Get the API URL - in production this would come from environment
-// For development with Expo, you need to use your machine's IP
-export const API_BASE_URL = "http://192.168.1.100:3000"; // Replace with your actual IP
+// Get the API URL based on environment
+const getApiUrl = () => {
+    // Check if we're in a web environment (can use localhost)
+    if (typeof window !== "undefined" && window.location?.hostname === "localhost") {
+        return "http://localhost:3000";
+    }
+
+    // For mobile/emulator, use the machine's IP address
+    // Replace this with your actual machine IP address
+    return "http://192.168.1.100:3000";
+};
+
+export const API_BASE_URL = getApiUrl();
 
 // API Endpoints
 export const API_ENDPOINTS = {
