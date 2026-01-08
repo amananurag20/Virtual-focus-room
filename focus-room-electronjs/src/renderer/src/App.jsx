@@ -1,34 +1,53 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { SocketProvider } from './context/SocketContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
+import Home from './pages/Home';
+import Room from './pages/Room';
+import Dashboard from './pages/Dashboard';
+import './index.css';
 
 function App() {
-  const ipcHandle = () => window.electron.ipcRenderer.send('ping')
-
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-      </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
-  )
+    <AuthProvider>
+      <ThemeProvider>
+        <SocketProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/room/:roomId" element={<Room />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+              },
+              success: {
+                iconTheme: {
+                  primary: 'var(--accent-success)',
+                  secondary: 'var(--bg-card)',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: 'var(--accent-danger)',
+                  secondary: 'var(--bg-card)',
+                },
+              },
+            }}
+          />
+        </SocketProvider>
+      </ThemeProvider>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;
