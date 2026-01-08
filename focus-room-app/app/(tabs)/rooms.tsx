@@ -1,18 +1,11 @@
-import {
-    View,
-    Text,
-    ScrollView,
-    Pressable,
-    TextInput,
-    StyleSheet,
-    Dimensions,
-} from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, Modal, RefreshControl, ActivityIndicator, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
-
-const { width } = Dimensions.get("window");
+import { useState, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { useSocket, Room } from "@/context/SocketContext";
+import { useAuth } from "@/context/AuthContext";
 
 const categories = [
     { id: "all", label: "All", icon: "grid-outline" },
@@ -21,90 +14,194 @@ const categories = [
     { id: "art", label: "Art", icon: "color-palette-outline" },
 ];
 
-const rooms = [
-    { id: 1, name: "Deep Focus Zone", desc: "Silent study room", participants: 12, max: 20, category: "study", host: "John D.", duration: "2h" },
-    { id: 2, name: "Coding Marathon", desc: "Building projects", participants: 8, max: 15, category: "coding", host: "Sarah K.", duration: "1h" },
-    { id: 3, name: "Creative Corner", desc: "Digital art focus", participants: 5, max: 10, category: "art", host: "Mike R.", duration: "45m" },
-    { id: 4, name: "Late Night Study", desc: "For night owls", participants: 15, max: 25, category: "study", host: "Alex T.", duration: "5h" },
-];
-
 export default function RoomsScreen() {
-    const [search, setSearch] = useState("");
-    const [category, setCategory] = useState("all");
+    const router = useRouter();
+    const { rooms, isConnected, createRoom, joinRoom } = useSocket();
+    const { user, isLoggedIn } = useAuth();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("all");
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newRoomName, setNewRoomName] = useState("");
+    const [isCreating, setIsCreating] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const filtered = rooms.filter((r) => {
-        const matchSearch = r.name.toLowerCase().includes(search.toLowerCase());
-        const matchCat = category === "all" || r.category === category;
-        return matchSearch && matchCat;
-    });
+    // Filter rooms based on search
+    const filteredRooms = rooms.filter((room) =>
+        room.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-    const getColor = (cat: string) => {
-        const c: Record<string, string[]> = {
-            study: ["#6366f1", "#8b5cf6"],
-            coding: ["#10b981", "#14b8a6"],
-            art: ["#ec4899", "#f43f5e"],
-        };
-        return c[cat] || ["#6366f1", "#8b5cf6"];
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        // Rooms automatically refresh via socket
+        setTimeout(() => setRefreshing(false), 1000);
+    }, []);
+
+    const handleCreateRoom = async () => {
+        if (!isLoggedIn) {
+            Alert.alert("Sign In Required", "Please sign in to create a room", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Sign In", onPress: () => router.push("/(auth)/login") },
+            ]);
+            return;
+        }
+
+        if (!newRoomName.trim()) {
+            Alert.alert("Error", "Please enter a room name");
+            return;
+        }
+
+        setIsCreating(true);
+        const result = await createRoom(newRoomName.trim(), user?.name || "User", user?.tier || "free", user?._id);
+        setIsCreating(false);
+
+        if (result.success && result.roomId) {
+            setIsModalOpen(false);
+            setNewRoomName("");
+            router.push({
+                pathname: "/room/[roomId]",
+                params: { roomId: result.roomId, roomName: newRoomName },
+            });
+        } else {
+            Alert.alert("Error", result.error || "Failed to create room");
+        }
+    };
+
+    const handleJoinRoom = async (room: Room) => {
+        if (!isLoggedIn) {
+            Alert.alert("Sign In Required", "Please sign in to join a room", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Sign In", onPress: () => router.push("/(auth)/login") },
+            ]);
+            return;
+        }
+
+        const result = await joinRoom(room.id, user?.name || "User", user?.tier || "free", user?._id);
+
+        if (result.success) {
+            router.push({
+                pathname: "/room/[roomId]",
+                params: { roomId: room.id, roomName: room.name },
+            });
+        } else {
+            Alert.alert("Error", result.error || "Failed to join room");
+        }
     };
 
     return (
         <LinearGradient colors={["#0a0a1a", "#0f0f2a", "#1a1a35"]} style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
+                {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.title}>Focus Rooms</Text>
-                    <Pressable style={styles.createBtn}>
+                    <View>
+                        <Text style={styles.title}>Focus Rooms</Text>
+                        <View style={styles.statusRow}>
+                            <View style={[styles.statusDot, isConnected ? styles.online : styles.offline]} />
+                            <Text style={styles.statusText}>{isConnected ? "Connected" : "Connecting..."}</Text>
+                        </View>
+                    </View>
+                    <Pressable style={styles.createBtn} onPress={() => setIsModalOpen(true)}>
                         <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.createBtnGrad}>
                             <Ionicons name="add" size={24} color="#fff" />
                         </LinearGradient>
                     </Pressable>
                 </View>
 
-                <View style={styles.searchWrap}>
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
                     <View style={styles.searchBar}>
                         <Ionicons name="search-outline" size={20} color="#6b7280" />
-                        <TextInput style={styles.searchInput} placeholder="Search..." placeholderTextColor="#6b7280" value={search} onChangeText={setSearch} />
+                        <TextInput style={styles.searchInput} placeholder="Search rooms..." placeholderTextColor="#6b7280" value={searchQuery} onChangeText={setSearchQuery} />
                     </View>
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats}>
-                    {categories.map((c) => (
-                        <Pressable key={c.id} style={[styles.chip, category === c.id && styles.chipActive]} onPress={() => setCategory(c.id)}>
-                            <Ionicons name={c.icon as any} size={16} color={category === c.id ? "#fff" : "#9ca3af"} />
-                            <Text style={[styles.chipText, category === c.id && styles.chipTextActive]}>{c.label}</Text>
+                {/* Categories Filter */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContainer}>
+                    {categories.map((category) => (
+                        <Pressable key={category.id} style={[styles.categoryChip, selectedCategory === category.id && styles.categoryChipActive]} onPress={() => setSelectedCategory(category.id)}>
+                            <Ionicons name={category.icon as any} size={18} color={selectedCategory === category.id ? "#fff" : "#9ca3af"} />
+                            <Text style={[styles.categoryLabel, selectedCategory === category.id && styles.categoryLabelActive]}>{category.label}</Text>
                         </Pressable>
                     ))}
                 </ScrollView>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-                    {filtered.map((room) => (
-                        <Pressable key={room.id} style={styles.card}>
-                            <View style={styles.cardHead}>
-                                <LinearGradient colors={getColor(room.category)} style={styles.cardIcon}>
-                                    <Ionicons name="videocam" size={22} color="#fff" />
+                {/* Rooms List */}
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.roomsContainer} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#a78bfa" />}>
+                    {filteredRooms.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <LinearGradient colors={["rgba(139,92,246,0.2)", "rgba(99,102,241,0.1)"]} style={styles.emptyIcon}>
+                                <Ionicons name="videocam-outline" size={48} color="#a78bfa" />
+                            </LinearGradient>
+                            <Text style={styles.emptyTitle}>No active rooms</Text>
+                            <Text style={styles.emptySubtitle}>Be the first to create a focus session!</Text>
+                            <Pressable style={styles.createFirstBtn} onPress={() => setIsModalOpen(true)}>
+                                <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.createFirstBtnGrad}>
+                                    <Ionicons name="add" size={20} color="#fff" />
+                                    <Text style={styles.createFirstBtnText}>Create Room</Text>
                                 </LinearGradient>
-                                <View style={styles.cardInfo}>
-                                    <View style={styles.nameRow}>
-                                        <Text style={styles.cardName}>{room.name}</Text>
-                                        <View style={styles.live}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View>
+                            </Pressable>
+                        </View>
+                    ) : (
+                        filteredRooms.map((room) => (
+                            <Pressable key={room.id} style={styles.roomCard} onPress={() => handleJoinRoom(room)}>
+                                <View style={styles.roomHeader}>
+                                    <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.roomIcon}>
+                                        <Ionicons name="videocam" size={20} color="#fff" />
+                                    </LinearGradient>
+                                    <View style={styles.roomInfo}>
+                                        <View style={styles.roomTitleRow}>
+                                            <Text style={styles.roomName}>{room.name}</Text>
+                                            <View style={styles.liveTag}>
+                                                <View style={styles.liveDot} />
+                                                <Text style={styles.liveText}>LIVE</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.roomDescription}>Focus session</Text>
                                     </View>
-                                    <Text style={styles.cardDesc}>{room.desc}</Text>
                                 </View>
-                            </View>
-                            <View style={styles.meta}>
-                                <View style={styles.metaItem}><Ionicons name="people-outline" size={14} color="#9ca3af" /><Text style={styles.metaText}>{room.participants}/{room.max}</Text></View>
-                                <View style={styles.metaItem}><Ionicons name="time-outline" size={14} color="#9ca3af" /><Text style={styles.metaText}>{room.duration}</Text></View>
-                                <View style={styles.metaItem}><Ionicons name="person-outline" size={14} color="#9ca3af" /><Text style={styles.metaText}>{room.host}</Text></View>
-                            </View>
-                            <View style={styles.footer}>
-                                <View style={styles.avatars}>
-                                    {[0, 1, 2].map((i) => <View key={i} style={[styles.avatar, { marginLeft: i > 0 ? -10 : 0 }]}><Text style={styles.avatarT}>{String.fromCharCode(65 + i)}</Text></View>)}
+                                <View style={styles.roomMeta}>
+                                    <View style={styles.metaItem}>
+                                        <Ionicons name="people-outline" size={14} color="#6b7280" />
+                                        <Text style={styles.metaText}>{room.participantCount}</Text>
+                                    </View>
+                                    <View style={styles.metaItem}>
+                                        <Ionicons name="time-outline" size={14} color="#6b7280" />
+                                        <Text style={styles.metaText}>{new Date(room.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
+                                    </View>
                                 </View>
-                                <Pressable style={styles.joinBtn}><Text style={styles.joinText}>Join</Text><Ionicons name="arrow-forward" size={16} color="#fff" /></Pressable>
-                            </View>
-                        </Pressable>
-                    ))}
+                                <Pressable style={styles.joinBtn} onPress={() => handleJoinRoom(room)}>
+                                    <Text style={styles.joinBtnText}>Join</Text>
+                                    <Ionicons name="chevron-forward" size={16} color="#a78bfa" />
+                                </Pressable>
+                            </Pressable>
+                        ))
+                    )}
                     <View style={{ height: 100 }} />
                 </ScrollView>
+
+                {/* Create Room Modal */}
+                <Modal visible={isModalOpen} transparent animationType="slide" onRequestClose={() => setIsModalOpen(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <LinearGradient colors={["#0f0f2a", "#1a1a35"]} style={styles.modalGradient}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>Create Room</Text>
+                                    <Pressable style={styles.closeBtn} onPress={() => setIsModalOpen(false)}>
+                                        <Ionicons name="close" size={24} color="#9ca3af" />
+                                    </Pressable>
+                                </View>
+                                <View style={styles.modalBody}>
+                                    <Text style={styles.inputLabel}>Room Name</Text>
+                                    <TextInput style={styles.modalInput} placeholder="e.g., Deep Work Session" placeholderTextColor="#6b7280" value={newRoomName} onChangeText={setNewRoomName} maxLength={40} />
+                                    <Pressable style={styles.modalCreateBtn} onPress={handleCreateRoom} disabled={isCreating}>
+                                        <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.modalCreateBtnGrad}>
+                                            {isCreating ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalCreateBtnText}>Create Room</Text>}
+                                        </LinearGradient>
+                                    </Pressable>
+                                </View>
+                            </LinearGradient>
+                        </View>
+                    </View>
+                </Modal>
             </SafeAreaView>
         </LinearGradient>
     );
@@ -115,34 +212,54 @@ const styles = StyleSheet.create({
     safeArea: { flex: 1 },
     header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16 },
     title: { color: "#fff", fontSize: 28, fontWeight: "bold" },
-    createBtn: { borderRadius: 22, overflow: "hidden" },
+    statusRow: { flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 },
+    statusDot: { width: 8, height: 8, borderRadius: 4 },
+    online: { backgroundColor: "#10b981" },
+    offline: { backgroundColor: "#f59e0b" },
+    statusText: { color: "#9ca3af", fontSize: 12 },
+    createBtn: { overflow: "hidden", borderRadius: 22 },
     createBtnGrad: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-    searchWrap: { paddingHorizontal: 20, marginBottom: 16 },
+    searchContainer: { paddingHorizontal: 20, marginBottom: 16 },
     searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
     searchInput: { flex: 1, color: "#fff", fontSize: 16, marginLeft: 12 },
-    cats: { paddingHorizontal: 20, gap: 10, paddingBottom: 16 },
-    chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", gap: 6, marginRight: 10 },
-    chipActive: { backgroundColor: "rgba(139,92,246,0.3)", borderColor: "rgba(139,92,246,0.5)" },
-    chipText: { color: "#9ca3af", fontSize: 14, fontWeight: "500" },
-    chipTextActive: { color: "#fff" },
-    list: { paddingHorizontal: 20, gap: 16 },
-    card: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 20, padding: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", marginBottom: 4 },
-    cardHead: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-    cardIcon: { width: 50, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", marginRight: 14 },
-    cardInfo: { flex: 1 },
-    nameRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
-    cardName: { color: "#fff", fontSize: 17, fontWeight: "600" },
-    live: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(239,68,68,0.2)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, gap: 4 },
+    categoriesContainer: { paddingHorizontal: 20, gap: 10, marginBottom: 16 },
+    categoryChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    categoryChipActive: { backgroundColor: "rgba(139,92,246,0.3)", borderColor: "#8b5cf6" },
+    categoryLabel: { color: "#9ca3af", fontSize: 14, fontWeight: "500" },
+    categoryLabelActive: { color: "#fff" },
+    roomsContainer: { paddingHorizontal: 20 },
+    emptyState: { alignItems: "center", paddingTop: 60 },
+    emptyIcon: { width: 100, height: 100, borderRadius: 50, alignItems: "center", justifyContent: "center", marginBottom: 20 },
+    emptyTitle: { color: "#fff", fontSize: 20, fontWeight: "600" },
+    emptySubtitle: { color: "#9ca3af", fontSize: 14, marginTop: 8 },
+    createFirstBtn: { marginTop: 24, borderRadius: 30, overflow: "hidden" },
+    createFirstBtnGrad: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingVertical: 14, gap: 8 },
+    createFirstBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+    roomCard: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    roomHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+    roomIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    roomInfo: { flex: 1, marginLeft: 14 },
+    roomTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    roomName: { color: "#fff", fontSize: 16, fontWeight: "600", flex: 1 },
+    liveTag: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(239,68,68,0.2)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 4 },
     liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#ef4444" },
     liveText: { color: "#ef4444", fontSize: 10, fontWeight: "700" },
-    cardDesc: { color: "#9ca3af", fontSize: 13 },
-    meta: { flexDirection: "row", gap: 16, marginBottom: 14 },
+    roomDescription: { color: "#9ca3af", fontSize: 13, marginTop: 2 },
+    roomMeta: { flexDirection: "row", gap: 16, marginBottom: 12 },
     metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-    metaText: { color: "#9ca3af", fontSize: 12 },
-    footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 14, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)" },
-    avatars: { flexDirection: "row", alignItems: "center" },
-    avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(139,92,246,0.3)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#0f0f2a" },
-    avatarT: { color: "#fff", fontSize: 12, fontWeight: "600" },
-    joinBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(139,92,246,0.3)", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20, gap: 6 },
-    joinText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+    metaText: { color: "#6b7280", fontSize: 12 },
+    joinBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(139,92,246,0.15)", borderRadius: 12, paddingVertical: 12, gap: 4 },
+    joinBtnText: { color: "#a78bfa", fontSize: 14, fontWeight: "600" },
+    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
+    modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
+    modalGradient: { padding: 24 },
+    modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
+    modalTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
+    closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
+    modalBody: { gap: 16 },
+    inputLabel: { color: "#9ca3af", fontSize: 13, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+    modalInput: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, color: "#fff", fontSize: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    modalCreateBtn: { borderRadius: 16, overflow: "hidden", marginTop: 8 },
+    modalCreateBtnGrad: { paddingVertical: 16, alignItems: "center", justifyContent: "center" },
+    modalCreateBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });
