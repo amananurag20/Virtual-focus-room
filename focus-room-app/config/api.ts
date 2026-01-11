@@ -17,7 +17,7 @@ const getApiUrl = () => {
 
     // For mobile/emulator, use the machine's IP address
     // Replace this with your actual machine IP address
-    return "http://192.168.1.100:3000";
+    return "http://10.17.18.12:3000";
 };
 
 export const API_BASE_URL = getApiUrl();
