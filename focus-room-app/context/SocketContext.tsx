@@ -79,7 +79,13 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
         socketInstance.on("user:joined", (user: Participant) => {
             console.log("User joined:", user.username);
-            setParticipants((prev) => [...prev, user]);
+            setParticipants((prev) => {
+                // Prevent duplicates
+                if (prev.some((p) => p.socketId === user.socketId)) {
+                    return prev;
+                }
+                return [...prev, user];
+            });
         });
 
         socketInstance.on("user:left", ({ socketId }: { socketId: string }) => {
@@ -154,8 +160,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
                     (response: any) => {
                         if (response.success) {
                             setCurrentRoom(response.room);
+                            // Filter out current user from existingUsers to prevent duplicates
+                            const filteredExisting = (response.existingUsers || []).filter(
+                                (u: Participant) => u.socketId !== socket.id
+                            );
                             setParticipants([
-                                ...response.existingUsers,
+                                ...filteredExisting,
                                 { socketId: socket.id!, username, userTier, userId },
                             ]);
                             setMessages([]);

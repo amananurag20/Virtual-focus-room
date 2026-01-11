@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, Modal, RefreshControl, ActivityIndicator, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, Modal, RefreshControl, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,13 +16,12 @@ const categories = [
 
 export default function RoomsScreen() {
     const router = useRouter();
-    const { rooms, isConnected, createRoom, joinRoom } = useSocket();
+    const { rooms, isConnected } = useSocket();
     const { user, isLoggedIn } = useAuth();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newRoomName, setNewRoomName] = useState("");
-    const [isCreating, setIsCreating] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
     // Filter rooms based on search
@@ -36,7 +35,7 @@ export default function RoomsScreen() {
         setTimeout(() => setRefreshing(false), 1000);
     }, []);
 
-    const handleCreateRoom = async () => {
+    const handleCreateRoom = () => {
         if (!isLoggedIn) {
             Alert.alert("Sign In Required", "Please sign in to create a room", [
                 { text: "Cancel", style: "cancel" },
@@ -50,23 +49,16 @@ export default function RoomsScreen() {
             return;
         }
 
-        setIsCreating(true);
-        const result = await createRoom(newRoomName.trim(), user?.name || "User", user?.tier || "free", user?._id);
-        setIsCreating(false);
-
-        if (result.success && result.roomId) {
-            setIsModalOpen(false);
-            setNewRoomName("");
-            router.push({
-                pathname: "/room/[roomId]",
-                params: { roomId: result.roomId, roomName: newRoomName },
-            });
-        } else {
-            Alert.alert("Error", result.error || "Failed to create room");
-        }
+        setIsModalOpen(false);
+        // Navigate to pre-join screen for camera setup before creating room
+        router.push({
+            pathname: "/room/prejoin",
+            params: { roomName: newRoomName.trim(), action: "create" },
+        });
+        setNewRoomName("");
     };
 
-    const handleJoinRoom = async (room: Room) => {
+    const handleJoinRoom = (room: Room) => {
         if (!isLoggedIn) {
             Alert.alert("Sign In Required", "Please sign in to join a room", [
                 { text: "Cancel", style: "cancel" },
@@ -75,16 +67,11 @@ export default function RoomsScreen() {
             return;
         }
 
-        const result = await joinRoom(room.id, user?.name || "User", user?.tier || "free", user?._id);
-
-        if (result.success) {
-            router.push({
-                pathname: "/room/[roomId]",
-                params: { roomId: room.id, roomName: room.name },
-            });
-        } else {
-            Alert.alert("Error", result.error || "Failed to join room");
-        }
+        // Navigate to pre-join screen for camera setup before joining room
+        router.push({
+            pathname: "/room/prejoin",
+            params: { roomId: room.id, roomName: room.name, action: "join" },
+        });
     };
 
     return (
@@ -192,9 +179,9 @@ export default function RoomsScreen() {
                                 <View style={styles.modalBody}>
                                     <Text style={styles.inputLabel}>Room Name</Text>
                                     <TextInput style={styles.modalInput} placeholder="e.g., Deep Work Session" placeholderTextColor="#6b7280" value={newRoomName} onChangeText={setNewRoomName} maxLength={40} />
-                                    <Pressable style={styles.modalCreateBtn} onPress={handleCreateRoom} disabled={isCreating}>
+                                    <Pressable style={styles.modalCreateBtn} onPress={handleCreateRoom}>
                                         <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.modalCreateBtnGrad}>
-                                            {isCreating ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalCreateBtnText}>Create Room</Text>}
+                                            <Text style={styles.modalCreateBtnText}>Continue</Text>
                                         </LinearGradient>
                                     </Pressable>
                                 </View>
