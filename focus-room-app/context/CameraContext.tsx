@@ -29,7 +29,11 @@ export function CameraProvider({ children }: { children: ReactNode }) {
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [cameraType, setCameraType] = useState<CameraType>("front");
 
-    const hasPermission = cameraPermission?.granted && microphonePermission?.granted;
+    // Determine permission status - null means not checked yet
+    const hasPermission: boolean | null =
+        cameraPermission === null || microphonePermission === null
+            ? null
+            : (cameraPermission?.granted && microphonePermission?.granted) ?? false;
 
     // Request camera and microphone permissions
     const requestPermissions = useCallback(async (): Promise<boolean> => {
