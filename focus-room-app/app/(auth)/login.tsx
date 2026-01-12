@@ -5,10 +5,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function LoginScreen() {
     const router = useRouter();
     const { login } = useAuth();
+    const { theme, isDark } = useTheme();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -31,8 +33,12 @@ export default function LoginScreen() {
         }
     };
 
+    const backgroundColors = isDark
+        ? [theme.gradientStart, theme.gradientMid, theme.gradientEnd] as const
+        : [theme.background, theme.backgroundSecondary, theme.backgroundTertiary] as const;
+
     return (
-        <LinearGradient colors={["#0a0a1a", "#0f0f2a", "#1a1a35"]} style={styles.container}>
+        <LinearGradient colors={backgroundColors} style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
                     <View style={styles.content}>
@@ -41,30 +47,45 @@ export default function LoginScreen() {
                             <LinearGradient colors={["#6366f1", "#8b5cf6"]} style={styles.logoIcon}>
                                 <Ionicons name="videocam" size={40} color="#fff" />
                             </LinearGradient>
-                            <Text style={styles.logoText}>Focus Room</Text>
-                            <Text style={styles.tagline}>Stay focused, together</Text>
+                            <Text style={[styles.logoText, { color: theme.text }]}>Focus Room</Text>
+                            <Text style={[styles.tagline, { color: theme.textSecondary }]}>Stay focused, together</Text>
                         </View>
 
                         {/* Error */}
                         {error ? (
-                            <View style={styles.errorBox}>
-                                <Ionicons name="alert-circle" size={18} color="#ef4444" />
-                                <Text style={styles.errorText}>{error}</Text>
+                            <View style={[styles.errorBox, { backgroundColor: isDark ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.1)" }]}>
+                                <Ionicons name="alert-circle" size={18} color={theme.error} />
+                                <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
                             </View>
                         ) : null}
 
                         {/* Form */}
                         <View style={styles.form}>
-                            <View style={styles.inputContainer}>
-                                <Ionicons name="mail-outline" size={20} color="#6b7280" style={styles.inputIcon} />
-                                <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#6b7280" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+                            <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}>
+                                <Ionicons name="mail-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                                <TextInput
+                                    style={[styles.input, { color: theme.inputText }]}
+                                    placeholder="Email"
+                                    placeholderTextColor={theme.inputPlaceholder}
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
                             </View>
 
-                            <View style={styles.inputContainer}>
-                                <Ionicons name="lock-closed-outline" size={20} color="#6b7280" style={styles.inputIcon} />
-                                <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#6b7280" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
+                            <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}>
+                                <Ionicons name="lock-closed-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                                <TextInput
+                                    style={[styles.input, { color: theme.inputText }]}
+                                    placeholder="Password"
+                                    placeholderTextColor={theme.inputPlaceholder}
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={!showPassword}
+                                />
                                 <Pressable onPress={() => setShowPassword(!showPassword)}>
-                                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6b7280" />
+                                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.textMuted} />
                                 </Pressable>
                             </View>
 
@@ -77,15 +98,15 @@ export default function LoginScreen() {
 
                         {/* Signup link */}
                         <View style={styles.signupRow}>
-                            <Text style={styles.signupText}>Don't have an account? </Text>
+                            <Text style={[styles.signupText, { color: theme.textSecondary }]}>Don't have an account? </Text>
                             <Pressable onPress={() => router.push("/(auth)/signup")}>
-                                <Text style={styles.signupLink}>Sign Up</Text>
+                                <Text style={[styles.signupLink, { color: theme.primary }]}>Sign Up</Text>
                             </Pressable>
                         </View>
 
                         {/* Guest mode */}
                         <Pressable style={styles.guestBtn} onPress={() => router.replace("/(tabs)")}>
-                            <Text style={styles.guestText}>Continue as Guest</Text>
+                            <Text style={[styles.guestText, { color: theme.textMuted }]}>Continue as Guest</Text>
                         </Pressable>
                     </View>
                 </KeyboardAvoidingView>
@@ -101,20 +122,20 @@ const styles = StyleSheet.create({
     content: { flex: 1, paddingHorizontal: 24, justifyContent: "center" },
     logoContainer: { alignItems: "center", marginBottom: 40 },
     logoIcon: { width: 80, height: 80, borderRadius: 24, alignItems: "center", justifyContent: "center", marginBottom: 16 },
-    logoText: { color: "#fff", fontSize: 32, fontWeight: "bold" },
-    tagline: { color: "#9ca3af", fontSize: 16, marginTop: 8 },
-    errorBox: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(239,68,68,0.15)", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, marginBottom: 20, gap: 8 },
-    errorText: { color: "#ef4444", fontSize: 14 },
+    logoText: { fontSize: 32, fontWeight: "bold" },
+    tagline: { fontSize: 16, marginTop: 8 },
+    errorBox: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, marginBottom: 20, gap: 8 },
+    errorText: { fontSize: 14 },
     form: { gap: 16 },
-    inputContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    inputContainer: { flexDirection: "row", alignItems: "center", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1 },
     inputIcon: { marginRight: 12 },
-    input: { flex: 1, color: "#fff", fontSize: 16 },
+    input: { flex: 1, fontSize: 16 },
     loginBtn: { borderRadius: 16, overflow: "hidden", marginTop: 8 },
     loginBtnGrad: { paddingVertical: 16, alignItems: "center", justifyContent: "center" },
     loginBtnText: { color: "#fff", fontSize: 18, fontWeight: "600" },
     signupRow: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
-    signupText: { color: "#9ca3af", fontSize: 15 },
-    signupLink: { color: "#a78bfa", fontSize: 15, fontWeight: "600" },
+    signupText: { fontSize: 15 },
+    signupLink: { fontSize: 15, fontWeight: "600" },
     guestBtn: { marginTop: 20, paddingVertical: 16, alignItems: "center" },
-    guestText: { color: "#6b7280", fontSize: 15 },
+    guestText: { fontSize: 15 },
 });

@@ -1,35 +1,35 @@
 import { Tabs } from "expo-router";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
+import { useTheme } from "@/context/ThemeContext";
 
 type TabIconProps = {
     focused: boolean;
     color: string;
     name: keyof typeof Ionicons.glyphMap;
     label: string;
+    theme: ReturnType<typeof useTheme>["theme"];
 };
 
-function TabIcon({ focused, color, name, label }: TabIconProps) {
+function TabIcon({ focused, color, name, label, theme }: TabIconProps) {
     return (
         <View style={styles.tabIconContainer}>
             <View
                 style={[
                     styles.iconWrapper,
-                    focused && styles.iconWrapperFocused,
+                    focused && { backgroundColor: theme.primaryLight },
                 ]}
             >
                 <Ionicons
                     name={name}
                     size={24}
-                    color={focused ? "#fff" : "#6b7280"}
+                    color={focused ? theme.tabIconActive : theme.tabIconInactive}
                 />
             </View>
             <Text
                 style={[
                     styles.tabLabel,
-                    { color: focused ? "#a78bfa" : "#6b7280" },
+                    { color: focused ? theme.primary : theme.tabIconInactive },
                 ]}
             >
                 {label}
@@ -39,14 +39,22 @@ function TabIcon({ focused, color, name, label }: TabIconProps) {
 }
 
 export default function TabLayout() {
+    const { theme } = useTheme();
+
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
-                tabBarStyle: styles.tabBar,
+                tabBarStyle: [
+                    styles.tabBar,
+                    {
+                        backgroundColor: theme.tabBarBackground,
+                        borderTopColor: theme.tabBarBorder,
+                    },
+                ],
                 tabBarShowLabel: false,
-                tabBarActiveTintColor: "#a78bfa",
-                tabBarInactiveTintColor: "#6b7280",
+                tabBarActiveTintColor: theme.primary,
+                tabBarInactiveTintColor: theme.tabIconInactive,
             }}
         >
             <Tabs.Screen
@@ -59,6 +67,7 @@ export default function TabLayout() {
                             color={color}
                             name={focused ? "home" : "home-outline"}
                             label="Home"
+                            theme={theme}
                         />
                     ),
                 }}
@@ -73,6 +82,7 @@ export default function TabLayout() {
                             color={color}
                             name={focused ? "grid" : "grid-outline"}
                             label="Rooms"
+                            theme={theme}
                         />
                     ),
                 }}
@@ -87,6 +97,7 @@ export default function TabLayout() {
                             color={color}
                             name={focused ? "people" : "people-outline"}
                             label="Friends"
+                            theme={theme}
                         />
                     ),
                 }}
@@ -101,6 +112,7 @@ export default function TabLayout() {
                             color={color}
                             name={focused ? "person" : "person-outline"}
                             label="Profile"
+                            theme={theme}
                         />
                     ),
                 }}
@@ -111,9 +123,7 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
     tabBar: {
-        backgroundColor: "rgba(15, 15, 35, 0.95)",
         borderTopWidth: 1,
-        borderTopColor: "rgba(139, 92, 246, 0.2)",
         height: 75,
         paddingBottom: 10,
         paddingTop: 10,
@@ -133,9 +143,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         alignItems: "center",
         justifyContent: "center",
-    },
-    iconWrapperFocused: {
-        backgroundColor: "rgba(139, 92, 246, 0.3)",
     },
     tabLabel: {
         fontSize: 11,

@@ -5,10 +5,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function SignupScreen() {
     const router = useRouter();
     const { signup } = useAuth();
+    const { theme, isDark } = useTheme();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -41,51 +43,83 @@ export default function SignupScreen() {
         }
     };
 
+    const backgroundColors = isDark
+        ? [theme.gradientStart, theme.gradientMid, theme.gradientEnd] as const
+        : [theme.background, theme.backgroundSecondary, theme.backgroundTertiary] as const;
+
     return (
-        <LinearGradient colors={["#0a0a1a", "#0f0f2a", "#1a1a35"]} style={styles.container}>
+        <LinearGradient colors={backgroundColors} style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                         {/* Header */}
                         <View style={styles.header}>
-                            <Pressable style={styles.backBtn} onPress={() => router.back()}>
-                                <Ionicons name="arrow-back" size={24} color="#fff" />
+                            <Pressable style={[styles.backBtn, { backgroundColor: theme.cardBackground }]} onPress={() => router.back()}>
+                                <Ionicons name="arrow-back" size={24} color={theme.text} />
                             </Pressable>
                         </View>
 
                         <View style={styles.content}>
-                            <Text style={styles.title}>Create Account</Text>
-                            <Text style={styles.subtitle}>Join the Focus Room community</Text>
+                            <Text style={[styles.title, { color: theme.text }]}>Create Account</Text>
+                            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Join the Focus Room community</Text>
 
                             {error ? (
-                                <View style={styles.errorBox}>
-                                    <Ionicons name="alert-circle" size={18} color="#ef4444" />
-                                    <Text style={styles.errorText}>{error}</Text>
+                                <View style={[styles.errorBox, { backgroundColor: isDark ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.1)" }]}>
+                                    <Ionicons name="alert-circle" size={18} color={theme.error} />
+                                    <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
                                 </View>
                             ) : null}
 
                             <View style={styles.form}>
-                                <View style={styles.inputContainer}>
-                                    <Ionicons name="person-outline" size={20} color="#6b7280" style={styles.inputIcon} />
-                                    <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor="#6b7280" value={name} onChangeText={setName} />
+                                <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}>
+                                    <Ionicons name="person-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={[styles.input, { color: theme.inputText }]}
+                                        placeholder="Full Name"
+                                        placeholderTextColor={theme.inputPlaceholder}
+                                        value={name}
+                                        onChangeText={setName}
+                                    />
                                 </View>
 
-                                <View style={styles.inputContainer}>
-                                    <Ionicons name="mail-outline" size={20} color="#6b7280" style={styles.inputIcon} />
-                                    <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#6b7280" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+                                <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}>
+                                    <Ionicons name="mail-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={[styles.input, { color: theme.inputText }]}
+                                        placeholder="Email"
+                                        placeholderTextColor={theme.inputPlaceholder}
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        keyboardType="email-address"
+                                        autoCapitalize="none"
+                                    />
                                 </View>
 
-                                <View style={styles.inputContainer}>
-                                    <Ionicons name="lock-closed-outline" size={20} color="#6b7280" style={styles.inputIcon} />
-                                    <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#6b7280" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
+                                <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}>
+                                    <Ionicons name="lock-closed-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={[styles.input, { color: theme.inputText }]}
+                                        placeholder="Password"
+                                        placeholderTextColor={theme.inputPlaceholder}
+                                        value={password}
+                                        onChangeText={setPassword}
+                                        secureTextEntry={!showPassword}
+                                    />
                                     <Pressable onPress={() => setShowPassword(!showPassword)}>
-                                        <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6b7280" />
+                                        <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.textMuted} />
                                     </Pressable>
                                 </View>
 
-                                <View style={styles.inputContainer}>
-                                    <Ionicons name="lock-closed-outline" size={20} color="#6b7280" style={styles.inputIcon} />
-                                    <TextInput style={styles.input} placeholder="Confirm Password" placeholderTextColor="#6b7280" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPassword} />
+                                <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}>
+                                    <Ionicons name="lock-closed-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={[styles.input, { color: theme.inputText }]}
+                                        placeholder="Confirm Password"
+                                        placeholderTextColor={theme.inputPlaceholder}
+                                        value={confirmPassword}
+                                        onChangeText={setConfirmPassword}
+                                        secureTextEntry={!showPassword}
+                                    />
                                 </View>
 
                                 <Pressable style={styles.signupBtn} onPress={handleSignup} disabled={loading}>
@@ -96,9 +130,9 @@ export default function SignupScreen() {
                             </View>
 
                             <View style={styles.loginRow}>
-                                <Text style={styles.loginText}>Already have an account? </Text>
+                                <Text style={[styles.loginText, { color: theme.textSecondary }]}>Already have an account? </Text>
                                 <Pressable onPress={() => router.back()}>
-                                    <Text style={styles.loginLink}>Sign In</Text>
+                                    <Text style={[styles.loginLink, { color: theme.primary }]}>Sign In</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -115,20 +149,20 @@ const styles = StyleSheet.create({
     keyboardView: { flex: 1 },
     scrollContent: { flexGrow: 1 },
     header: { paddingHorizontal: 20, paddingTop: 10 },
-    backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
+    backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
     content: { flex: 1, paddingHorizontal: 24, justifyContent: "center", paddingBottom: 40 },
-    title: { color: "#fff", fontSize: 32, fontWeight: "bold", marginBottom: 8 },
-    subtitle: { color: "#9ca3af", fontSize: 16, marginBottom: 32 },
-    errorBox: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(239,68,68,0.15)", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, marginBottom: 20, gap: 8 },
-    errorText: { color: "#ef4444", fontSize: 14 },
+    title: { fontSize: 32, fontWeight: "bold", marginBottom: 8 },
+    subtitle: { fontSize: 16, marginBottom: 32 },
+    errorBox: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, marginBottom: 20, gap: 8 },
+    errorText: { fontSize: 14 },
     form: { gap: 16 },
-    inputContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    inputContainer: { flexDirection: "row", alignItems: "center", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1 },
     inputIcon: { marginRight: 12 },
-    input: { flex: 1, color: "#fff", fontSize: 16 },
+    input: { flex: 1, fontSize: 16 },
     signupBtn: { borderRadius: 16, overflow: "hidden", marginTop: 8 },
     signupBtnGrad: { paddingVertical: 16, alignItems: "center", justifyContent: "center" },
     signupBtnText: { color: "#fff", fontSize: 18, fontWeight: "600" },
     loginRow: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
-    loginText: { color: "#9ca3af", fontSize: 15 },
-    loginLink: { color: "#a78bfa", fontSize: 15, fontWeight: "600" },
+    loginText: { fontSize: 15 },
+    loginLink: { fontSize: 15, fontWeight: "600" },
 });
