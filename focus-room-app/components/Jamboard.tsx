@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Line } from "react-native-svg";
 import { useSocket } from "@/context/SocketContext";
+import { useTheme } from "@/context/ThemeContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CANVAS_WIDTH = SCREEN_WIDTH - 32;
@@ -27,7 +28,8 @@ type DrawLine = {
     width: number;
 };
 
-const COLORS = [
+// Colors for dark mode (light colors on dark canvas)
+const COLORS_DARK = [
     "#ffffff", // White
     "#ef4444", // Red
     "#f97316", // Orange
@@ -36,6 +38,18 @@ const COLORS = [
     "#3b82f6", // Blue
     "#8b5cf6", // Purple
     "#ec4899", // Pink
+];
+
+// Colors for light mode (dark colors on white canvas)
+const COLORS_LIGHT = [
+    "#1e293b", // Dark slate (default)
+    "#000000", // Black
+    "#dc2626", // Red
+    "#ea580c", // Orange
+    "#16a34a", // Green
+    "#2563eb", // Blue
+    "#7c3aed", // Purple
+    "#db2777", // Pink
 ];
 
 const STROKE_WIDTHS = [2, 4, 6, 8, 12];
@@ -47,13 +61,26 @@ type JamboardProps = {
 
 export default function Jamboard({ visible, onClose }: JamboardProps) {
     const { socket, isConnected, currentRoom } = useSocket();
+    const { theme, isDark } = useTheme();
     const [lines, setLines] = useState<DrawLine[]>([]);
-    const [selectedColor, setSelectedColor] = useState("#ffffff");
+    const [selectedColor, setSelectedColor] = useState(isDark ? "#ffffff" : "#1e293b");
     const [strokeWidth, setStrokeWidth] = useState(4);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [isEraser, setIsEraser] = useState(false);
     const lastPosRef = useRef<{ x: number; y: number } | null>(null);
     const isDrawingRef = useRef(false);
+
+    // Get the appropriate colors based on theme
+    const COLORS = isDark ? COLORS_DARK : COLORS_LIGHT;
+
+    // Canvas and eraser colors
+    const canvasColor = isDark ? "#0f0f2a" : "#ffffff";
+    const eraserColor = canvasColor;
+
+    // Update default color when theme changes
+    useEffect(() => {
+        setSelectedColor(isDark ? "#ffffff" : "#1e293b");
+    }, [isDark]);
 
     // Request history when opening
     useEffect(() => {
@@ -138,7 +165,7 @@ export default function Jamboard({ visible, onClose }: JamboardProps) {
             y0: lastY,
             x1: coords.x,
             y1: coords.y,
-            color: isEraser ? "#0f0f2a" : selectedColor,
+            color: isEraser ? eraserColor : selectedColor,
             width: isEraser ? strokeWidth * 3 : strokeWidth,
         };
 
@@ -177,17 +204,21 @@ export default function Jamboard({ visible, onClose }: JamboardProps) {
         }
     };
 
+    const backgroundColors = isDark
+        ? [theme.gradientStart, theme.gradientMid, theme.gradientEnd] as const
+        : [theme.background, theme.backgroundSecondary, theme.backgroundTertiary] as const;
+
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-            <LinearGradient colors={["#0a0a1a", "#0f0f2a", "#1a1a35"]} style={styles.container}>
+            <LinearGradient colors={backgroundColors} style={styles.container}>
                 {/* Header */}
-                <View style={styles.header}>
-                    <Pressable style={styles.closeBtn} onPress={onClose}>
-                        <Ionicons name="close" size={24} color="#fff" />
+                <View style={[styles.header, { borderBottomColor: theme.surfaceBorder }]}>
+                    <Pressable style={[styles.closeBtn, { backgroundColor: theme.cardBackground }]} onPress={onClose}>
+                        <Ionicons name="close" size={24} color={theme.text} />
                     </Pressable>
                     <View style={styles.headerCenter}>
-                        <Ionicons name="easel" size={20} color="#a78bfa" />
-                        <Text style={styles.title}>Jamboard</Text>
+                        <Ionicons name="easel" size={20} color={theme.primary} />
+                        <Text style={[styles.title, { color: theme.text }]}>Jamboard</Text>
                         {isConnected && (
                             <View style={styles.syncBadge}>
                                 <View style={styles.syncDot} />
@@ -196,11 +227,11 @@ export default function Jamboard({ visible, onClose }: JamboardProps) {
                         )}
                     </View>
                     <View style={styles.headerActions}>
-                        <Pressable style={styles.actionBtn} onPress={handleUndo}>
-                            <Ionicons name="arrow-undo" size={20} color="#9ca3af" />
+                        <Pressable style={[styles.actionBtn, { backgroundColor: theme.cardBackground }]} onPress={handleUndo}>
+                            <Ionicons name="arrow-undo" size={20} color={theme.textSecondary} />
                         </Pressable>
-                        <Pressable style={styles.actionBtn} onPress={handleClear}>
-                            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                        <Pressable style={[styles.actionBtn, { backgroundColor: theme.cardBackground }]} onPress={handleClear}>
+                            <Ionicons name="trash-outline" size={20} color={theme.error} />
                         </Pressable>
                     </View>
                 </View>
@@ -208,7 +239,7 @@ export default function Jamboard({ visible, onClose }: JamboardProps) {
                 {/* Canvas */}
                 <View style={styles.canvasContainer}>
                     <View
-                        style={styles.canvas}
+                        style={[styles.canvas, { backgroundColor: canvasColor, borderColor: theme.primaryBorder }]}
                         onTouchStart={handleTouchStart}
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
@@ -232,44 +263,44 @@ export default function Jamboard({ visible, onClose }: JamboardProps) {
                 </View>
 
                 {/* Toolbar */}
-                <View style={styles.toolbar}>
+                <View style={[styles.toolbar, { borderTopColor: theme.surfaceBorder }]}>
                     {/* Color Picker Toggle */}
                     <Pressable
-                        style={[styles.toolBtn, showColorPicker && styles.toolBtnActive]}
+                        style={[styles.toolBtn, { backgroundColor: theme.cardBackground }, showColorPicker && { backgroundColor: theme.primaryLight, borderWidth: 2, borderColor: theme.primary }]}
                         onPress={() => setShowColorPicker(!showColorPicker)}
                     >
-                        <View style={[styles.colorPreview, { backgroundColor: selectedColor }]} />
+                        <View style={[styles.colorPreview, { backgroundColor: selectedColor, borderColor: isDark ? "#fff" : "#374151" }]} />
                     </Pressable>
 
                     {/* Pen Tool */}
                     <Pressable
-                        style={[styles.toolBtn, !isEraser && styles.toolBtnActive]}
+                        style={[styles.toolBtn, { backgroundColor: theme.cardBackground }, !isEraser && { backgroundColor: theme.primaryLight, borderWidth: 2, borderColor: theme.primary }]}
                         onPress={() => setIsEraser(false)}
                     >
-                        <Ionicons name="pencil" size={24} color={!isEraser ? "#a78bfa" : "#9ca3af"} />
+                        <Ionicons name="pencil" size={24} color={!isEraser ? theme.primary : theme.textSecondary} />
                     </Pressable>
 
                     {/* Eraser Tool */}
                     <Pressable
-                        style={[styles.toolBtn, isEraser && styles.toolBtnActive]}
+                        style={[styles.toolBtn, { backgroundColor: theme.cardBackground }, isEraser && { backgroundColor: theme.primaryLight, borderWidth: 2, borderColor: theme.primary }]}
                         onPress={() => setIsEraser(true)}
                     >
-                        <Ionicons name="bandage" size={24} color={isEraser ? "#a78bfa" : "#9ca3af"} />
+                        <Ionicons name="bandage" size={24} color={isEraser ? theme.primary : theme.textSecondary} />
                     </Pressable>
 
                     {/* Stroke Width */}
-                    <View style={styles.strokeContainer}>
+                    <View style={[styles.strokeContainer, { backgroundColor: theme.cardBackground }]}>
                         {STROKE_WIDTHS.map((width) => (
                             <Pressable
                                 key={width}
-                                style={[styles.strokeBtn, strokeWidth === width && styles.strokeBtnActive]}
+                                style={[styles.strokeBtn, strokeWidth === width && { backgroundColor: theme.primaryLight }]}
                                 onPress={() => setStrokeWidth(width)}
                             >
                                 <View
                                     style={[
                                         styles.strokePreview,
-                                        { width: width + 8, height: width + 8 },
-                                        strokeWidth === width && styles.strokePreviewActive,
+                                        { width: width + 8, height: width + 8, backgroundColor: theme.textSecondary },
+                                        strokeWidth === width && { backgroundColor: theme.primary },
                                     ]}
                                 />
                             </Pressable>
@@ -279,16 +310,15 @@ export default function Jamboard({ visible, onClose }: JamboardProps) {
 
                 {/* Color Picker Panel */}
                 {showColorPicker && (
-                    <View style={styles.colorPicker}>
-                        <Text style={styles.colorPickerTitle}>Select Color</Text>
+                    <View style={[styles.colorPicker, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+                        <Text style={[styles.colorPickerTitle, { color: theme.text }]}>Select Color</Text>
                         <View style={styles.colorGrid}>
                             {COLORS.map((color) => (
                                 <Pressable
                                     key={color}
                                     style={[
                                         styles.colorOption,
-                                        { backgroundColor: color },
-                                        selectedColor === color && styles.colorOptionActive,
+                                        { backgroundColor: color, borderColor: selectedColor === color ? theme.primary : "transparent" },
                                     ]}
                                     onPress={() => {
                                         setSelectedColor(color);
@@ -297,7 +327,7 @@ export default function Jamboard({ visible, onClose }: JamboardProps) {
                                     }}
                                 >
                                     {selectedColor === color && (
-                                        <Ionicons name="checkmark" size={20} color={color === "#ffffff" ? "#000" : "#fff"} />
+                                        <Ionicons name="checkmark" size={20} color={isDark ? (color === "#ffffff" ? "#000" : "#fff") : (color === "#000000" || color === "#1e293b" ? "#fff" : "#000")} />
                                     )}
                                 </Pressable>
                             ))}
@@ -320,13 +350,11 @@ const styles = StyleSheet.create({
         paddingTop: 50,
         paddingBottom: 12,
         borderBottomWidth: 1,
-        borderBottomColor: "rgba(255,255,255,0.1)",
     },
     closeBtn: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: "rgba(255,255,255,0.1)",
         alignItems: "center",
         justifyContent: "center",
     },
@@ -337,7 +365,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         gap: 8,
     },
-    title: { color: "#fff", fontSize: 18, fontWeight: "600" },
+    title: { fontSize: 18, fontWeight: "600" },
     syncBadge: {
         flexDirection: "row",
         alignItems: "center",
@@ -354,7 +382,6 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: "rgba(255,255,255,0.1)",
         alignItems: "center",
         justifyContent: "center",
     },
@@ -369,10 +396,8 @@ const styles = StyleSheet.create({
     canvas: {
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
-        backgroundColor: "#0f0f2a",
         borderRadius: 16,
         borderWidth: 2,
-        borderColor: "rgba(139,92,246,0.3)",
         overflow: "hidden",
     },
     svg: { backgroundColor: "transparent" },
@@ -386,32 +411,23 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         gap: 12,
         borderTopWidth: 1,
-        borderTopColor: "rgba(255,255,255,0.1)",
     },
     toolBtn: {
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: "rgba(255,255,255,0.1)",
         alignItems: "center",
         justifyContent: "center",
-    },
-    toolBtnActive: {
-        backgroundColor: "rgba(139,92,246,0.3)",
-        borderWidth: 2,
-        borderColor: "#a78bfa",
     },
     colorPreview: {
         width: 24,
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: "#fff",
     },
     strokeContainer: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(255,255,255,0.05)",
         borderRadius: 24,
         paddingHorizontal: 8,
         paddingVertical: 4,
@@ -424,15 +440,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    strokeBtnActive: {
-        backgroundColor: "rgba(139,92,246,0.3)",
-    },
     strokePreview: {
-        backgroundColor: "#9ca3af",
         borderRadius: 20,
-    },
-    strokePreviewActive: {
-        backgroundColor: "#a78bfa",
     },
 
     // Color Picker
@@ -441,14 +450,11 @@ const styles = StyleSheet.create({
         bottom: 100,
         left: 16,
         right: 16,
-        backgroundColor: "rgba(15,15,42,0.98)",
         borderRadius: 20,
         padding: 20,
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.1)",
     },
     colorPickerTitle: {
-        color: "#fff",
         fontSize: 16,
         fontWeight: "600",
         textAlign: "center",
@@ -467,9 +473,5 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         borderWidth: 3,
-        borderColor: "transparent",
-    },
-    colorOptionActive: {
-        borderColor: "#fff",
     },
 });
