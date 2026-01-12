@@ -7,6 +7,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSocket, ChatMessage, Participant } from "@/context/SocketContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCamera, CameraView } from "@/context/CameraContext";
+import Jamboard from "@/components/Jamboard";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -28,6 +29,7 @@ export default function RoomScreen() {
     const [messageText, setMessageText] = useState("");
     const [showParticipants, setShowParticipants] = useState(false);
     const [showChat, setShowChat] = useState(false);
+    const [showJamboard, setShowJamboard] = useState(false);
     const scrollViewRef = useRef<ScrollView>(null);
 
     // Filter unique participants by socketId
@@ -246,6 +248,16 @@ export default function RoomScreen() {
                         <Text style={styles.controlLabel}>Chat</Text>
                     </Pressable>
 
+                    <Pressable style={styles.controlBtn} onPress={() => setShowJamboard(true)}>
+                        <LinearGradient
+                            colors={["#374151", "#1f2937"]}
+                            style={styles.controlBtnGrad}
+                        >
+                            <Ionicons name="easel" size={24} color="#fff" />
+                        </LinearGradient>
+                        <Text style={styles.controlLabel}>Jamboard</Text>
+                    </Pressable>
+
                     <Pressable style={styles.endBtn} onPress={handleLeave}>
                         <LinearGradient colors={["#ef4444", "#dc2626"]} style={styles.endBtnGrad}>
                             <Ionicons name="call" size={24} color="#fff" style={{ transform: [{ rotate: "135deg" }] }} />
@@ -365,6 +377,9 @@ export default function RoomScreen() {
                         )}
                     </KeyboardAvoidingView>
                 )}
+
+                {/* Jamboard Modal */}
+                <Jamboard visible={showJamboard} onClose={() => setShowJamboard(false)} />
             </SafeAreaView>
         </LinearGradient>
     );
@@ -413,12 +428,12 @@ const styles = StyleSheet.create({
     switchCameraBtn: { position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 14, width: 28, height: 28, alignItems: "center", justifyContent: "center" },
 
     // Controls
-    controls: { flexDirection: "row", justifyContent: "center", alignItems: "flex-start", paddingVertical: 12, paddingHorizontal: 8, gap: 16 },
+    controls: { flexDirection: "row", justifyContent: "center", alignItems: "flex-start", paddingVertical: 10, paddingHorizontal: 8, gap: 10 },
     controlBtn: { alignItems: "center" },
-    controlBtnGrad: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
-    controlLabel: { color: "#9ca3af", fontSize: 10, marginTop: 4 },
+    controlBtnGrad: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+    controlLabel: { color: "#9ca3af", fontSize: 9, marginTop: 4 },
     endBtn: { alignItems: "center" },
-    endBtnGrad: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
+    endBtnGrad: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
     chatBadge: { position: "absolute", top: -4, right: -4, backgroundColor: "#ef4444", borderRadius: 10, minWidth: 18, height: 18, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
     chatBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
 
