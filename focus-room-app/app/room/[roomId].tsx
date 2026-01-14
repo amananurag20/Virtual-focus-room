@@ -10,6 +10,7 @@ import { useCamera, CameraView } from "@/context/CameraContext";
 import { useTheme } from "@/context/ThemeContext";
 import { getTodos, createTodo, toggleTodo, deleteTodo, Todo } from "@/services/todoService";
 import Jamboard from "@/components/Jamboard";
+import AmbientPlayer from "@/components/AmbientPlayer";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -36,6 +37,7 @@ export default function RoomScreen() {
     const [showTodos, setShowTodos] = useState(false);
     const [showTimer, setShowTimer] = useState(false);
     const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const [showAmbientPlayer, setShowAmbientPlayer] = useState(false);
     const scrollViewRef = useRef<ScrollView>(null);
 
     // Todo state
@@ -340,7 +342,7 @@ export default function RoomScreen() {
                             </View>
                         </Pressable>
                         <Pressable
-                            style={styles.menuItem}
+                            style={[styles.menuItem, { borderBottomColor: theme.surfaceBorder }]}
                             onPress={() => { setShowTodos(true); closeAllPanels(); setShowTodos(true); setShowMoreMenu(false); }}
                         >
                             <View style={[styles.menuIcon, { backgroundColor: theme.cardBackground }]}>
@@ -351,6 +353,18 @@ export default function RoomScreen() {
                                 {pendingTodos > 0 && (
                                     <Text style={[styles.menuSubtext, { color: theme.warning }]}>{pendingTodos} pending</Text>
                                 )}
+                            </View>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.menuItem, { borderBottomWidth: 0 }]}
+                            onPress={() => { setShowAmbientPlayer(true); setShowMoreMenu(false); }}
+                        >
+                            <View style={[styles.menuIcon, { backgroundColor: theme.cardBackground }]}>
+                                <Ionicons name="musical-notes" size={20} color={theme.primary} />
+                            </View>
+                            <View style={styles.menuTextContainer}>
+                                <Text style={[styles.menuText, { color: theme.text }]}>Focus Sounds</Text>
+                                <Text style={[styles.menuSubtext, { color: theme.textSecondary }]}>Ambient music</Text>
                             </View>
                         </Pressable>
                     </View>
@@ -640,6 +654,9 @@ export default function RoomScreen() {
 
                 {/* Jamboard Modal */}
                 <Jamboard visible={showJamboard} onClose={() => setShowJamboard(false)} />
+
+                {/* Ambient Player Modal */}
+                <AmbientPlayer visible={showAmbientPlayer} onClose={() => setShowAmbientPlayer(false)} />
             </SafeAreaView>
         </LinearGradient>
     );
